@@ -3,10 +3,17 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { roleConfig, type AppRole } from "@/lib/role-config";
 import { AuthAlert, PasswordToggle, SubmitButton } from "../components";
 import { mapAuthError } from "../errors";
 
-export function ResetPasswordForm({ token }: { token: string }) {
+export function ResetPasswordForm({
+  role,
+  token,
+}: {
+  role?: AppRole;
+  token: string;
+}) {
   const router = useRouter();
   const pwRef = useRef<HTMLInputElement>(null);
   const [password, setPassword] = useState("");
@@ -33,14 +40,14 @@ export function ResetPasswordForm({ token }: { token: string }) {
     setBusy(true);
     const res = await authClient.resetPassword({
       newPassword: password,
-      token
+      token,
     });
     if (res.error) {
       setBusy(false);
       setErr(mapAuthError(res.error));
       return;
     }
-    router.push("/sign-in");
+    router.push(role ? roleConfig[role].signInPath : "/sign-in");
     router.refresh();
   }
 

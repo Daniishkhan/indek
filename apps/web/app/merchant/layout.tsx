@@ -3,21 +3,14 @@ import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
 
-const links = [
-  { href: "/operator", label: "Overview" },
-  { href: "/operator/intake", label: "Intake" },
-  { href: "/operator/dispatch", label: "Board" },
-  { href: "/operator/live", label: "Live Ops" },
-  { href: "/operator/reconciliation/r-umar", label: "Reconciliation" },
-];
-
-export default async function OperatorLayout({
+export default async function MerchantLayout({
   children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getCurrentSession();
-  if (!session) redirect("/sign-in/operator?next=/operator");
+  if (!session) redirect("/sign-in/merchant?next=/merchant");
+
   const role = (session.user as { role?: string }).role;
-  if (role !== "operator") {
+  if (role !== "merchant") {
     redirect(getRoleHome(role));
   }
 
@@ -27,15 +20,11 @@ export default async function OperatorLayout({
     <main className="shell">
       <header className="panel topbar">
         <div>
-          <div className="eyebrow">Operator console</div>
-          <h1 style={{ margin: 0 }}>Indek control plane</h1>
+          <div className="eyebrow">Merchant workspace</div>
+          <h1 style={{ margin: 0 }}>Merchant visibility</h1>
         </div>
         <nav className="nav-links">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href}>
-              {link.label}
-            </Link>
-          ))}
+          <Link href="/merchant">Overview</Link>
           <span
             style={{
               padding: "10px 14px",

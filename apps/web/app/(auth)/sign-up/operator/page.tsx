@@ -1,51 +1,46 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
+import { eq, count } from "drizzle-orm";
+import { getDb, user } from "@indek/db";
 import { getCurrentSession } from "@/lib/session";
-import {
-  getRoleHome,
-  isAppRole,
-  roleConfig,
-  type AppRole,
-} from "@/lib/role-config";
-import { ResetPasswordForm } from "./reset-password-form";
+import { SignUpForm } from "../sign-up-form";
+import { getRoleHome } from "@/lib/role-config";
 
-export default async function ResetPasswordPage({
-  searchParams,
-}: {
-  searchParams: Promise<{ token?: string; error?: string; role?: string }>;
-}) {
+export default async function OperatorSignUpPage() {
   const session = await getCurrentSession();
   if (session) {
     const role = (session.user as { role?: string }).role;
     redirect(getRoleHome(role));
   }
 
-  const { token, error, role } = await searchParams;
-  const intentRole = role && isAppRole(role) ? (role as AppRole) : undefined;
-  const signInHref = intentRole
-    ? roleConfig[intentRole].signInPath
-    : "/sign-in";
+  const db = getDb();
+  const [{ c }] = await db
+    .select({ c: count() })
+    .from(user)
+    .where(eq(user.role, "operator"));
+  const operatorExists = Number(c) > 0;
 
-  if (!token || error) {
+  if (operatorExists) {
     return (
       <div className="auth-card">
         <div className="auth-reveal auth-reveal-1">
-          <div className="auth-eyebrow">Reset flow</div>
+          <span className="auth-role-hint">Bootstrap closed</span>
           <h1 className="auth-title" style={{ marginTop: 14 }}>
-            This link is <span className="accent">invalid or expired</span>
+            An operator <span className="accent">already exists</span>
           </h1>
           <p className="auth-desc">
-            Reset links expire after one hour. Request a fresh link below to try
-            again.
+            This instance has been bootstrapped. Additional operators, riders,
+            and merchants are created from inside the operator console — not via
+            public sign-up.
           </p>
         </div>
         <div className="auth-reveal auth-reveal-2">
           <Link
-            href="/forgot-password"
+            href="/sign-in/operator"
             className="auth-submit"
             style={{ textDecoration: "none" }}
           >
-            Request a new link
+            Go to operator sign in
             <svg
               viewBox="0 0 24 24"
               fill="none"
@@ -69,22 +64,22 @@ export default async function ResetPasswordPage({
   return (
     <div className="auth-card">
       <div className="auth-reveal auth-reveal-1">
-        <div className="auth-eyebrow">Reset flow</div>
+        <span className="auth-role-hint">Operator bootstrap</span>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Choose a <span className="accent">new password</span>
+          Create the <span className="accent">first operator</span>
         </h1>
         <p className="auth-desc">
-          Pick something at least eight characters long. You&apos;ll be signed
-          in automatically once it&apos;s set.
+          This is a one-time setup. The first operator becomes the admin for
+          this instance and manages everyone else from the console.
         </p>
       </div>
 
       <div className="auth-reveal auth-reveal-2">
-        <ResetPasswordForm role={intentRole} token={token} />
+        <SignUpForm />
       </div>
 
       <div className="auth-foot auth-reveal auth-reveal-3">
-        Changed your mind? <Link href={signInHref}>Back to sign in</Link>
+        Need another route? <Link href="/sign-up">Choose by role</Link>
       </div>
     </div>
   );

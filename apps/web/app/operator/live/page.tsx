@@ -1,8 +1,12 @@
 import Link from "next/link";
 import { listRiders } from "@indek/domain";
 
-export default function LiveOpsPage() {
-  const riders = listRiders();
+function formatCurrency(value: number) {
+  return `AED ${value.toFixed(2)}`;
+}
+
+export default async function LiveOpsPage() {
+  const riders = await listRiders();
 
   return (
     <section className="panel">
@@ -11,13 +15,17 @@ export default function LiveOpsPage() {
       <div className="cards-grid">
         {riders.map((rider) => {
           const anomaly =
-            rider.status !== "available" && rider.parcelsInCustody > 0 && rider.cashHeldAed > 1500;
+            rider.status !== "available" &&
+            rider.parcelsInCustody > 0 &&
+            rider.cashHeldAed > 1500;
           return (
             <article className="card" key={rider.id}>
               <div className="split">
                 <strong>{rider.name}</strong>
                 <span className={`chip ${anomaly ? "warn" : ""}`}>
-                  {anomaly ? "check cash exposure" : rider.status.replace("_", " ")}
+                  {anomaly
+                    ? "check cash exposure"
+                    : rider.status.replace("_", " ")}
                 </span>
               </div>
               <div className="two-col" style={{ marginTop: 16 }}>
@@ -31,7 +39,9 @@ export default function LiveOpsPage() {
                 </div>
                 <div>
                   <div className="label">Cash held</div>
-                  <div className="value">AED {rider.cashHeldAed}</div>
+                  <div className="value">
+                    {formatCurrency(rider.cashHeldAed)}
+                  </div>
                 </div>
                 <div>
                   <div className="label">Last event</div>

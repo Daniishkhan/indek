@@ -7,6 +7,8 @@ export function middleware(req: NextRequest) {
   const { pathname } = req.nextUrl;
 
   const needsAuth =
+    pathname === "/merchant" ||
+    pathname.startsWith("/merchant/") ||
     pathname === "/rider" ||
     pathname.startsWith("/rider/") ||
     pathname === "/operator" ||
@@ -18,11 +20,17 @@ export function middleware(req: NextRequest) {
   if (cookie) return NextResponse.next();
 
   const url = req.nextUrl.clone();
-  url.pathname = "/sign-in";
+  if (pathname.startsWith("/merchant")) {
+    url.pathname = "/sign-in/merchant";
+  } else if (pathname.startsWith("/rider")) {
+    url.pathname = "/sign-in/rider";
+  } else {
+    url.pathname = "/sign-in/operator";
+  }
   url.searchParams.set("next", pathname);
   return NextResponse.redirect(url);
 }
 
 export const config = {
-  matcher: ["/operator/:path*", "/rider/:path*"]
+  matcher: ["/merchant/:path*", "/operator/:path*", "/rider/:path*"],
 };

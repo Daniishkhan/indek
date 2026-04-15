@@ -3,6 +3,7 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { roleConfig } from "@/lib/role-config";
 import { AuthAlert, PasswordToggle, SubmitButton } from "../components";
 import { mapAuthError } from "../errors";
 
@@ -33,14 +34,14 @@ export function SignUpForm() {
       email: email.trim(),
       password,
       // @ts-expect-error — registered as additional field in server config
-      role: "operator"
+      role: "operator",
     });
     if (res.error) {
       setBusy(false);
       setErr(mapAuthError(res.error));
       return;
     }
-    router.push("/operator");
+    router.push(roleConfig.operator.homePath);
     router.refresh();
   }
 

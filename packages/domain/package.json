@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@indek/db": "workspace:*",
-    "@indek/shared": "workspace:*"
+    "@indek/shared": "workspace:*",
+    "drizzle-orm": "^0.45.2"
   }
 }

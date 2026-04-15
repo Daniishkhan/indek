@@ -4,10 +4,17 @@ import { useEffect, useRef, useState } from "react";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
+import { getRoleHome, type AppRole } from "@/lib/role-config";
 import { AuthAlert, PasswordToggle, SubmitButton } from "../components";
 import { mapAuthError } from "../errors";
 
-export function SignInForm({ next }: { next?: string }) {
+export function SignInForm({
+  intentRole,
+  next,
+}: {
+  intentRole: AppRole;
+  next?: string;
+}) {
   const router = useRouter();
   const emailRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
@@ -28,7 +35,7 @@ export function SignInForm({ next }: { next?: string }) {
     const res = await authClient.signIn.email({
       email: email.trim(),
       password,
-      rememberMe: remember
+      rememberMe: remember,
     });
     if (res.error) {
       setBusy(false);
@@ -36,13 +43,8 @@ export function SignInForm({ next }: { next?: string }) {
       return;
     }
     const role = (res.data?.user as { role?: string } | undefined)?.role;
-    const dest =
-      next ??
-      (role === "rider"
-        ? "/rider"
-        : role === "merchant"
-          ? "/"
-          : "/operator");
+    const actualHome = getRoleHome(role ?? intentRole);
+    const dest = next && role === intentRole ? next : actualHome;
     router.push(dest);
     router.refresh();
   }
@@ -75,7 +77,10 @@ export function SignInForm({ next }: { next?: string }) {
           <label htmlFor="password" className="auth-label">
             Password
           </label>
-          <Link href="/forgot-password" className="auth-link">
+          <Link
+            href={`/forgot-password?role=${intentRole}`}
+            className="auth-link"
+          >
             Forgot password?
           </Link>
         </div>

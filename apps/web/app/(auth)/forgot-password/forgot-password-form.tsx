@@ -2,10 +2,11 @@
 
 import { useEffect, useRef, useState } from "react";
 import { authClient } from "@/lib/auth-client";
+import type { AppRole } from "@/lib/role-config";
 import { AuthAlert, SubmitButton } from "../components";
 import { mapAuthError } from "../errors";
 
-export function ForgotPasswordForm() {
+export function ForgotPasswordForm({ role }: { role?: AppRole }) {
   const emailRef = useRef<HTMLInputElement>(null);
   const [email, setEmail] = useState("");
   const [err, setErr] = useState<string | null>(null);
@@ -22,7 +23,7 @@ export function ForgotPasswordForm() {
     setBusy(true);
     const res = await authClient.requestPasswordReset({
       email: email.trim(),
-      redirectTo: "/reset-password"
+      redirectTo: role ? `/reset-password?role=${role}` : "/reset-password",
     });
     setBusy(false);
     if (res.error) {
@@ -77,11 +78,7 @@ export function ForgotPasswordForm() {
 
       {err && <AuthAlert message={err} />}
 
-      <SubmitButton
-        busy={busy}
-        label="Send reset link"
-        busyLabel="Sending…"
-      />
+      <SubmitButton busy={busy} label="Send reset link" busyLabel="Sending…" />
     </form>
   );
 }

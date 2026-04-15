@@ -1,21 +1,29 @@
-export type RiderStatus = "available" | "on_shift" | "returning" | "off_duty";
+export type RiderStatus = "available" | "on_shift" | "returning" | "off_shift";
+
 export type ParcelState =
   | "unassigned"
   | "assigned"
-  | "picked_up"
   | "in_transit"
   | "delivered"
   | "failed"
-  | "returning";
+  | "in_return"
+  | "returned";
+
+export type ProofRequirement = "photo" | "otp" | "photo+otp";
+
+export type RemittanceCycle = "daily" | "weekly" | "biweekly" | "monthly";
 
 export interface Merchant {
   id: string;
   name: string;
-  remittanceCycle: "weekly" | "biweekly";
-  proofRequirement: "photo" | "otp" | "photo+otp";
+  token: string;
+  remittanceCycle: RemittanceCycle;
+  proofRequirement: ProofRequirement;
   codFeePercent: number;
   deliveryFeeAed: number;
   disputeWindowDays: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Rider {
@@ -28,13 +36,17 @@ export interface Rider {
   cashHeldAed: number;
   lastEventAt: string;
   personalFloatAed: number;
+  createdAt: string;
+  updatedAt: string;
 }
 
 export interface Parcel {
   id: string;
   awb: string;
   merchantId: string;
+  merchantName?: string;
   riderId?: string;
+  manifestId?: string;
   customerName: string;
   customerPhone: string;
   area: string;
@@ -44,16 +56,19 @@ export interface Parcel {
   lastUpdateAt: string;
   itemSummary: string;
   notes?: string;
+  createdAt: string;
 }
 
 export interface Manifest {
   id: string;
   riderId: string;
+  riderName?: string;
   pickupCount: number;
   parcelIds: string[];
   expectedCodAed: number;
   zoneSummary: string;
   accepted: boolean;
+  createdAt: string;
 }
 
 export interface EventLogEntry {
@@ -81,6 +96,50 @@ export interface RemittanceStatement {
   netPayableAed: number;
   heldAmountAed: number;
   lines: RemittanceLine[];
+}
+
+export interface OpsSnapshot {
+  merchantCount: number;
+  riderCount: number;
+  activeDeliveries: number;
+  failedAttempts: number;
+  unassigned: number;
+  activeManifests: number;
+  codExposureAed: number;
+}
+
+export interface OperatorOverviewData {
+  snapshot: OpsSnapshot;
+  merchants: Merchant[];
+  riders: Rider[];
+  manifests: Manifest[];
+  unassigned: Parcel[];
+  recentParcels: Parcel[];
+}
+
+export interface OperatorIntakeData {
+  merchants: Merchant[];
+  riders: Rider[];
+  queue: Parcel[];
+  recentParcels: Parcel[];
+}
+
+export interface DispatchBoardData {
+  riders: Rider[];
+  parcels: Parcel[];
+  manifests: Manifest[];
+}
+
+export interface MerchantPortalData {
+  merchant: Merchant;
+  parcels: Parcel[];
+  remittance?: RemittanceStatement;
+  summary: {
+    activeCount: number;
+    deliveredCount: number;
+    failedCount: number;
+    awaitingAssignmentCount: number;
+  };
 }
 
 export interface IndekSeed {

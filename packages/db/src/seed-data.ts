@@ -5,30 +5,39 @@ export const seedData: IndekSeed = {
     {
       id: "m-bloom",
       name: "Bloom Boutique",
+      token: "bloom-demo",
       remittanceCycle: "weekly",
       proofRequirement: "photo+otp",
       codFeePercent: 0.08,
       deliveryFeeAed: 18,
-      disputeWindowDays: 7
+      disputeWindowDays: 7,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T08:00:00+04:00",
     },
     {
       id: "m-noonbake",
       name: "Noon Bakehouse",
+      token: "noon-demo",
       remittanceCycle: "weekly",
       proofRequirement: "photo",
       codFeePercent: 0.05,
       deliveryFeeAed: 15,
-      disputeWindowDays: 5
+      disputeWindowDays: 5,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T08:00:00+04:00",
     },
     {
       id: "m-safa",
       name: "Safa Pharmacy",
+      token: "safa-demo",
       remittanceCycle: "biweekly",
       proofRequirement: "otp",
       codFeePercent: 0.06,
       deliveryFeeAed: 20,
-      disputeWindowDays: 10
-    }
+      disputeWindowDays: 10,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T08:00:00+04:00",
+    },
   ],
   riders: [
     {
@@ -40,7 +49,9 @@ export const seedData: IndekSeed = {
       deliveredToday: 8,
       cashHeldAed: 1260,
       lastEventAt: "2026-04-15T12:20:00+04:00",
-      personalFloatAed: 150
+      personalFloatAed: 150,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T12:20:00+04:00",
     },
     {
       id: "r-umar",
@@ -51,7 +62,9 @@ export const seedData: IndekSeed = {
       deliveredToday: 13,
       cashHeldAed: 1940,
       lastEventAt: "2026-04-15T12:11:00+04:00",
-      personalFloatAed: 100
+      personalFloatAed: 100,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T12:11:00+04:00",
     },
     {
       id: "r-faisal",
@@ -62,8 +75,10 @@ export const seedData: IndekSeed = {
       deliveredToday: 0,
       cashHeldAed: 0,
       lastEventAt: "2026-04-15T09:00:00+04:00",
-      personalFloatAed: 120
-    }
+      personalFloatAed: 120,
+      createdAt: "2026-04-15T08:00:00+04:00",
+      updatedAt: "2026-04-15T09:00:00+04:00",
+    },
   ],
   parcels: [
     {
@@ -79,7 +94,8 @@ export const seedData: IndekSeed = {
       state: "in_transit",
       lastUpdateAt: "2026-04-15T12:20:00+04:00",
       itemSummary: "2 dresses",
-      notes: "Call before arrival"
+      notes: "Call before arrival",
+      createdAt: "2026-04-15T09:10:00+04:00",
     },
     {
       id: "p-102",
@@ -93,7 +109,8 @@ export const seedData: IndekSeed = {
       codAmountAed: 95,
       state: "delivered",
       lastUpdateAt: "2026-04-15T11:48:00+04:00",
-      itemSummary: "Cake box"
+      itemSummary: "Cake box",
+      createdAt: "2026-04-15T09:15:00+04:00",
     },
     {
       id: "p-103",
@@ -108,7 +125,8 @@ export const seedData: IndekSeed = {
       state: "failed",
       lastUpdateAt: "2026-04-15T11:30:00+04:00",
       itemSummary: "OTC pharmacy bundle",
-      notes: "Customer requested reschedule"
+      notes: "Customer requested reschedule",
+      createdAt: "2026-04-15T09:30:00+04:00",
     },
     {
       id: "p-104",
@@ -121,7 +139,8 @@ export const seedData: IndekSeed = {
       codAmountAed: 280,
       state: "unassigned",
       lastUpdateAt: "2026-04-15T10:00:00+04:00",
-      itemSummary: "Abaya set"
+      itemSummary: "Abaya set",
+      createdAt: "2026-04-15T10:00:00+04:00",
     },
     {
       id: "p-105",
@@ -134,8 +153,9 @@ export const seedData: IndekSeed = {
       codAmountAed: 120,
       state: "assigned",
       lastUpdateAt: "2026-04-15T10:10:00+04:00",
-      itemSummary: "Dessert box"
-    }
+      itemSummary: "Dessert box",
+      createdAt: "2026-04-15T10:10:00+04:00",
+    },
   ],
   manifests: [
     {
@@ -145,7 +165,8 @@ export const seedData: IndekSeed = {
       parcelIds: ["p-101", "p-102"],
       expectedCodAed: 415,
       zoneSummary: "Marina, JLT",
-      accepted: true
+      accepted: true,
+      createdAt: "2026-04-15T09:00:00+04:00",
     },
     {
       id: "man-002",
@@ -154,8 +175,9 @@ export const seedData: IndekSeed = {
       parcelIds: ["p-105"],
       expectedCodAed: 120,
       zoneSummary: "JVC",
-      accepted: false
-    }
+      accepted: false,
+      createdAt: "2026-04-15T10:05:00+04:00",
+    },
   ],
   eventLog: [
     {
@@ -164,7 +186,7 @@ export const seedData: IndekSeed = {
       type: "manifest.assigned",
       actor: "operator",
       timestamp: "2026-04-15T09:10:00+04:00",
-      location: "Indek HQ"
+      location: "Indek HQ",
     },
     {
       id: "e-002",
@@ -172,7 +194,7 @@ export const seedData: IndekSeed = {
       type: "pickup.confirmed",
       actor: "Hassan Ali",
       timestamp: "2026-04-15T10:04:00+04:00",
-      location: "Bloom Boutique pickup"
+      location: "Bloom Boutique pickup",
     },
     {
       id: "e-003",
@@ -181,7 +203,7 @@ export const seedData: IndekSeed = {
       actor: "Hassan Ali",
       timestamp: "2026-04-15T11:48:00+04:00",
       location: "JLT",
-      proof: "Photo + OTP captured"
+      proof: "Photo + OTP captured",
     },
     {
       id: "e-004",
@@ -190,8 +212,8 @@ export const seedData: IndekSeed = {
       actor: "Umar Khan",
       timestamp: "2026-04-15T11:30:00+04:00",
       location: "Deira",
-      proof: "Door photo"
-    }
+      proof: "Door photo",
+    },
   ],
   remittances: [
     {
@@ -206,16 +228,16 @@ export const seedData: IndekSeed = {
           awb: "DSP-100",
           codAed: 540,
           deliveryFeeAed: 18,
-          handlingFeeAed: 43.2
+          handlingFeeAed: 43.2,
         },
         {
           parcelId: "p-099",
           awb: "DSP-099",
           codAed: 980,
           deliveryFeeAed: 18,
-          handlingFeeAed: 78.4
-        }
-      ]
-    }
-  ]
+          handlingFeeAed: 78.4,
+        },
+      ],
+    },
+  ],
 };

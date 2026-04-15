@@ -1,20 +1,30 @@
-import { getManifestForRider, getParcelsForRider, getRiderById } from "@indek/domain";
+import {
+  getManifestForRider,
+  getParcelsForRider,
+  getRiderById,
+} from "@indek/domain";
 import { notFound } from "next/navigation";
 
+function formatCurrency(value: number) {
+  return `AED ${value.toFixed(2)}`;
+}
+
 export default async function ReconciliationPage({
-  params
+  params,
 }: {
   params: Promise<{ riderId: string }>;
 }) {
   const { riderId } = await params;
-  const rider = getRiderById(riderId);
+  const rider = await getRiderById(riderId);
 
   if (!rider) {
     notFound();
   }
 
-  const manifest = getManifestForRider(riderId);
-  const parcels = getParcelsForRider(riderId);
+  const [manifest, parcels] = await Promise.all([
+    getManifestForRider(riderId),
+    getParcelsForRider(riderId),
+  ]);
   const expectedCash = rider.cashHeldAed;
   const actualCash = rider.id === "r-umar" ? 1890 : rider.cashHeldAed;
   const variance = actualCash - expectedCash;
@@ -28,12 +38,17 @@ export default async function ReconciliationPage({
           <div className="card">
             <div className="label">Expected</div>
             <div className="metric-value">{parcels.length} parcels</div>
-            <p>Manifest {manifest?.id ?? "not assigned"} still holds the custody baseline.</p>
+            <p>
+              Manifest {manifest?.id ?? "not assigned"} still holds the custody
+              baseline.
+            </p>
           </div>
           <div className="card">
             <div className="label">Cash expected</div>
-            <div className="metric-value">AED {expectedCash}</div>
-            <p>Personal float remains separate from COD collections by design.</p>
+            <div className="metric-value">{formatCurrency(expectedCash)}</div>
+            <p>
+              Personal float remains separate from COD collections by design.
+            </p>
           </div>
         </div>
 
@@ -52,7 +67,7 @@ export default async function ReconciliationPage({
                 <td>{parcel.awb}</td>
                 <td>{parcel.state.replace("_", " ")}</td>
                 <td>{parcel.area}</td>
-                <td>AED {parcel.codAmountAed}</td>
+                <td>{formatCurrency(parcel.codAmountAed)}</td>
               </tr>
             ))}
           </tbody>
@@ -65,12 +80,15 @@ export default async function ReconciliationPage({
         <div className="list">
           <div className="list-item">
             <div className="label">Actual cash counted</div>
-            <div className="metric-value">AED {actualCash}</div>
+            <div className="metric-value">{formatCurrency(actualCash)}</div>
           </div>
           <div className="list-item">
             <div className="label">Variance</div>
-            <div className={`metric-value`} style={{ color: variance ? "var(--danger)" : "var(--accent)" }}>
-              AED {variance}
+            <div
+              className={`metric-value`}
+              style={{ color: variance ? "var(--danger)" : "var(--accent)" }}
+            >
+              {formatCurrency(variance)}
             </div>
             <div className={`chip ${variance ? "danger" : ""}`}>
               {variance ? "Reason required before close" : "Ready to close"}

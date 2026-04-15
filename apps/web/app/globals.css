@@ -49,9 +49,13 @@
   --radius-lg: 14px;
   --radius: 10px;
   --shadow-xs: 0 1px 2px rgba(15, 16, 20, 0.04);
-  --shadow-sm: 0 1px 2px rgba(15, 16, 20, 0.05), 0 1px 1px rgba(15, 16, 20, 0.03);
-  --shadow-md: 0 4px 14px -6px rgba(15, 16, 20, 0.10), 0 2px 4px -2px rgba(15, 16, 20, 0.05);
-  --shadow-lg: 0 18px 40px -20px rgba(15, 16, 20, 0.18), 0 4px 8px -4px rgba(15, 16, 20, 0.06);
+  --shadow-sm:
+    0 1px 2px rgba(15, 16, 20, 0.05), 0 1px 1px rgba(15, 16, 20, 0.03);
+  --shadow-md:
+    0 4px 14px -6px rgba(15, 16, 20, 0.1), 0 2px 4px -2px rgba(15, 16, 20, 0.05);
+  --shadow-lg:
+    0 18px 40px -20px rgba(15, 16, 20, 0.18),
+    0 4px 8px -4px rgba(15, 16, 20, 0.06);
 
   /* Shadcn token shim — keep library happy, map to ours */
   --card: var(--surface);
@@ -78,7 +82,9 @@
   --chart-5: #2f8f5d;
 
   /* Typography */
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, sans-serif;
+  --font-sans:
+    var(--font-inter), ui-sans-serif, system-ui, -apple-system, "Segoe UI",
+    Roboto, sans-serif;
   --font-mono: ui-monospace, "JetBrains Mono", SFMono-Regular, Menlo, monospace;
   --tracking-tight: -0.015em;
   --tracking-normal: -0.005em;
@@ -89,7 +95,9 @@
 }
 
 /* --- Reset-ish --- */
-* { box-sizing: border-box; }
+* {
+  box-sizing: border-box;
+}
 
 html {
   background: var(--background);
@@ -109,10 +117,19 @@ body {
   letter-spacing: var(--tracking-normal);
 }
 
-a { color: inherit; text-decoration: none; }
+a {
+  color: inherit;
+  text-decoration: none;
+}
 
 /* Disable italics globally — Indek uses upright sans-serif only. */
-i, em, cite, dfn, address { font-style: normal; }
+i,
+em,
+cite,
+dfn,
+address {
+  font-style: normal;
+}
 
 /* =========================================================
    Operator/rider/merchant console layout (non-home routes)
@@ -123,7 +140,10 @@ main {
   padding: 32px 0 80px;
 }
 
-.shell { display: grid; gap: 24px; }
+.shell {
+  display: grid;
+  gap: 24px;
+}
 
 .hero,
 .panel,
@@ -176,19 +196,37 @@ main {
 .hero p,
 .panel p,
 .card p,
-.muted { color: var(--muted); line-height: 1.55; }
+.muted {
+  color: var(--muted);
+  line-height: 1.55;
+}
 
-.cta-row, .nav-row, .stats-grid, .grid, .cards-grid {
+.cta-row,
+.nav-row,
+.stats-grid,
+.grid,
+.cards-grid {
   display: grid;
   gap: 16px;
 }
 
-.cta-row, .nav-row { grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); }
-.stats-grid { grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); }
-.grid { grid-template-columns: 1.2fr 0.8fr; align-items: start; }
-.cards-grid { grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); }
+.cta-row,
+.nav-row {
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+}
+.stats-grid {
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+}
+.grid {
+  grid-template-columns: 1.2fr 0.8fr;
+  align-items: start;
+}
+.cards-grid {
+  grid-template-columns: repeat(auto-fit, minmax(240px, 1fr));
+}
 
-.button, .chip {
+.button,
+.chip {
   display: inline-flex;
   align-items: center;
   justify-content: center;
@@ -202,10 +240,14 @@ main {
   padding: 0 20px;
   background: var(--primary);
   color: var(--primary-foreground);
-  transition: background 160ms ease, transform 160ms ease;
+  transition:
+    background 160ms ease,
+    transform 160ms ease;
 }
 
-.button:hover { background: var(--primary-hover); }
+.button:hover {
+  background: var(--primary-hover);
+}
 
 .button.secondary {
   background: var(--surface);
@@ -213,7 +255,9 @@ main {
   border-color: var(--border-strong);
 }
 
-.button.secondary:hover { background: var(--surface-sunken); }
+.button.secondary:hover {
+  background: var(--surface-sunken);
+}
 
 .chip {
   padding: 6px 12px;
@@ -222,8 +266,14 @@ main {
   color: var(--primary);
 }
 
-.chip.warn { background: var(--accent-soft); color: var(--accent-hover); }
-.chip.danger { background: #fde8e6; color: var(--danger); }
+.chip.warn {
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+.chip.danger {
+  background: #fde8e6;
+  color: var(--danger);
+}
 
 .metric-value {
   font-size: 2rem;
@@ -232,11 +282,23 @@ main {
   letter-spacing: var(--tracking-tight);
 }
 
-.list { display: grid; gap: 12px; }
+.list {
+  display: grid;
+  gap: 12px;
+}
 
-.list-item, .timeline-item { display: grid; gap: 8px; }
+.list-item,
+.timeline-item {
+  display: grid;
+  gap: 8px;
+}
 
-.split { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 12px; }
+.split {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 12px;
+}
 
 .label {
   font-size: 0.72rem;
@@ -246,7 +308,10 @@ main {
   font-weight: 600;
 }
 
-.value { font-size: 1rem; font-weight: 600; }
+.value {
+  font-size: 1rem;
+  font-weight: 600;
+}
 
 .topbar {
   display: flex;
@@ -256,7 +321,11 @@ main {
   gap: 16px;
 }
 
-.nav-links { display: flex; flex-wrap: wrap; gap: 8px; }
+.nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+}
 
 .nav-links a {
   padding: 8px 14px;
@@ -265,7 +334,10 @@ main {
   border: 1px solid var(--border);
   font-size: 0.9rem;
   color: var(--muted-strong);
-  transition: background 140ms ease, color 140ms ease, border-color 140ms ease;
+  transition:
+    background 140ms ease,
+    color 140ms ease,
+    border-color 140ms ease;
 }
 
 .nav-links a:hover {
@@ -280,9 +352,14 @@ main {
   gap: 16px;
 }
 
-.table { width: 100%; border-collapse: collapse; font-size: 0.95rem; }
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 0.95rem;
+}
 
-.table th, .table td {
+.table th,
+.table td {
   text-align: left;
   padding: 12px 8px;
   border-bottom: 1px solid var(--border);
@@ -296,10 +373,145 @@ main {
   font-weight: 600;
 }
 
+.stack,
+.stack-tight {
+  display: grid;
+  gap: 16px;
+}
+
+.stack-tight {
+  gap: 8px;
+}
+
+.form-grid {
+  display: grid;
+  gap: 16px;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+.form-field {
+  display: grid;
+  gap: 8px;
+}
+
+.input,
+.select,
+.textarea {
+  width: 100%;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface-muted);
+  color: var(--foreground);
+  font: inherit;
+  padding: 12px 14px;
+  transition:
+    border-color 160ms ease,
+    box-shadow 160ms ease,
+    background 160ms ease;
+}
+
+.select {
+  min-height: 46px;
+}
+
+.textarea {
+  min-height: 112px;
+  resize: vertical;
+}
+
+.input:focus,
+.select:focus,
+.textarea:focus {
+  outline: none;
+  border-color: var(--primary);
+  box-shadow: 0 0 0 3px var(--primary-soft);
+  background: var(--surface);
+}
+
+.notice {
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  padding: 14px 16px;
+  font-weight: 600;
+}
+
+.notice.success {
+  border-color: rgba(47, 143, 93, 0.24);
+  background: var(--success-soft);
+  color: var(--success);
+}
+
+.notice.warn {
+  border-color: rgba(239, 122, 43, 0.24);
+  background: var(--accent-soft);
+  color: var(--accent-hover);
+}
+
+.empty-state {
+  display: grid;
+  gap: 8px;
+  border-radius: var(--radius-md);
+  border: 1px dashed var(--border-strong);
+  background: var(--surface-muted);
+  padding: 18px;
+}
+
+.interactive-card {
+  transition:
+    border-color 160ms ease,
+    transform 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.interactive-card:hover {
+  border-color: var(--primary);
+  transform: translateY(-1px);
+  box-shadow: var(--shadow-sm);
+}
+
+.checkbox-list {
+  display: grid;
+  gap: 12px;
+}
+
+.checkbox-item {
+  display: block;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  padding: 16px;
+  cursor: pointer;
+}
+
+.checkbox-head {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: start;
+}
+
+.checkbox-head input {
+  margin-top: 4px;
+  accent-color: var(--primary);
+}
+
+.note {
+  color: var(--muted);
+  font-size: 0.92rem;
+}
+
 @media (max-width: 900px) {
-  .grid { grid-template-columns: 1fr; }
-  main { width: min(100vw - 20px, 1200px); padding-top: 20px; }
-  .hero, .panel { padding: 22px; }
+  .grid {
+    grid-template-columns: 1fr;
+  }
+  main {
+    width: min(100vw - 20px, 1200px);
+    padding-top: 20px;
+  }
+  .hero,
+  .panel {
+    padding: 22px;
+  }
 }
 
 /* =========================================================

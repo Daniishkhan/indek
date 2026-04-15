@@ -1,15 +1,16 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
+import { getRoleHome } from "@/lib/role-config";
 
 export default async function RiderLayout({
-  children
+  children,
 }: Readonly<{ children: React.ReactNode }>) {
   const session = await getCurrentSession();
-  if (!session) redirect("/sign-in?next=/rider");
+  if (!session) redirect("/sign-in/rider?next=/rider");
   const role = (session.user as { role?: string }).role;
   if (role !== "rider") {
-    redirect(role === "operator" ? "/operator" : "/");
+    redirect(getRoleHome(role));
   }
 
   return (

@@ -218,6 +218,18 @@ Purpose:
 
 - convert intake into actionable rider work
 
+### 8. Merchant request link
+
+Purpose:
+
+- let the operator's customer submit one delivery request without a WhatsApp re-entry step
+
+Must include:
+
+- token-scoped merchant page
+- lightweight single-order form
+- same-page parcel status visibility after submission
+
 Must include:
 
 - view unassigned parcels
@@ -295,8 +307,9 @@ Tonight is a success if:
 4. we can create riders
 5. we can create parcels
 6. we can assign parcels into a manifest
+7. a merchant can submit a request and see its status
 
-If those six things work, the scaffold becomes a real product foundation.
+If those seven things work, the scaffold becomes a real product foundation.
 
 ## Technical recommendation
 

@@ -2,16 +2,19 @@ import Image from "next/image";
 import Link from "next/link";
 import { getOpsSnapshot, listMerchants } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
+import { getRoleHome } from "@/lib/role-config";
 import "./home.css";
 
 export default async function HomePage() {
-  const snapshot = getOpsSnapshot();
-  const merchants = listMerchants();
-  const session = await getCurrentSession();
+  const [snapshot, merchants, session] = await Promise.all([
+    getOpsSnapshot(),
+    listMerchants(),
+    getCurrentSession(),
+  ]);
   const role = (session?.user as { role?: string } | undefined)?.role;
-  const consoleHref =
-    role === "rider" ? "/rider" : role === "operator" ? "/operator" : "/sign-in";
+  const consoleHref = session ? getRoleHome(role) : "/sign-in";
   const consoleLabel = session ? "Enter console" : "Sign in";
+  const previewMerchant = merchants[0];
 
   return (
     <div className="home">
@@ -23,9 +26,15 @@ export default async function HomePage() {
             Indek <small>UAE</small>
           </Link>
           <div className="nav-right">
-            <Link href="#problem" className="nav-link hide-m">Problem</Link>
-            <Link href="#product" className="nav-link hide-m">Product</Link>
-            <Link href="#surfaces" className="nav-link hide-m">Surfaces</Link>
+            <Link href="#problem" className="nav-link hide-m">
+              Problem
+            </Link>
+            <Link href="#product" className="nav-link hide-m">
+              Product
+            </Link>
+            <Link href="#surfaces" className="nav-link hide-m">
+              Surfaces
+            </Link>
             <Link href={consoleHref} className="nav-cta">
               {consoleLabel} <span className="arrow">→</span>
             </Link>
@@ -52,7 +61,9 @@ export default async function HomePage() {
               Indek is the chain-of-custody operations platform for small UAE
               courier operators running multi-merchant cash-on-delivery with
               home-based riders.{" "}
-              <b>Ninety-five percent of the work is cash, custody, and proof.</b>{" "}
+              <b>
+                Ninety-five percent of the work is cash, custody, and proof.
+              </b>{" "}
               We built the whole product around that — and around the single
               line we won&apos;t cross: Indek never holds your money.
             </p>
@@ -61,9 +72,18 @@ export default async function HomePage() {
               <Link href="/operator" className="btn btn-primary">
                 Open the dispatch board <span className="arrow">→</span>
               </Link>
-              <Link href="#product" className="btn btn-ghost">
-                How it works
-              </Link>
+              {previewMerchant ? (
+                <Link
+                  href={`/m/${previewMerchant.token}`}
+                  className="btn btn-ghost"
+                >
+                  Open merchant portal
+                </Link>
+              ) : (
+                <Link href="#product" className="btn btn-ghost">
+                  How it works
+                </Link>
+              )}
             </div>
           </div>
 
@@ -105,9 +125,13 @@ export default async function HomePage() {
             <span className="ticker-foot">Queued with reason codes</span>
           </div>
           <div className="ticker-cell">
-            <span className="ticker-label">End-of-shift variance</span>
-            <span className="ticker-value ok">AED 0.00</span>
-            <span className="ticker-foot">Shift won&apos;t close until it clears</span>
+            <span className="ticker-label">Open manifests</span>
+            <span className="ticker-value ok">
+              {String(snapshot.activeManifests).padStart(2, "0")}
+            </span>
+            <span className="ticker-foot">
+              Active rider assignments in progress
+            </span>
           </div>
         </div>
       </section>
@@ -203,8 +227,8 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">01</div>
             <h3 className="cap-title">
-              Chain of custody,{" "}
-              <span className="accent">event-sourced</span> by default.
+              Chain of custody, <span className="accent">event-sourced</span> by
+              default.
             </h3>
             <div className="cap-body">
               <b>Every state transition is an immutable event</b> — pickup,
@@ -225,8 +249,8 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">02</div>
             <h3 className="cap-title">
-              Closed-loop cash with{" "}
-              <span className="accent">per-merchant</span> sub-ledgers.
+              Closed-loop cash with <span className="accent">per-merchant</span>{" "}
+              sub-ledgers.
             </h3>
             <div className="cap-body">
               Every rider has a live ledger tracking{" "}
@@ -247,8 +271,8 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">03</div>
             <h3 className="cap-title">
-              One <span className="accent">control plane</span> — WhatsApp stays,
-              but only as the pipe.
+              One <span className="accent">control plane</span> — WhatsApp
+              stays, but only as the pipe.
             </h3>
             <div className="cap-body">
               One operator console for intake, dispatch, reconciliation, RTO,
@@ -434,8 +458,8 @@ export default async function HomePage() {
           <div className="closing-wrap">
             <div className="closing-eyebrow">The promise</div>
             <h2 className="closing-line">
-              End the shift at{" "}
-              <span className="accent">zero variance</span>. Go home on time.
+              End the shift at <span className="accent">zero variance</span>. Go
+              home on time.
             </h2>
             <p className="closing-copy">
               Indek is built for the operator whose current workflow cannot
