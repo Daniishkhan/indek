@@ -149,7 +149,7 @@ A small UAE business — Instagram boutique, home baker, perfume seller, pharmac
 ## 7. Capability areas
 
 - **Intake and labeling:** Get orders into the system from however the merchant sends them, attach a scannable label, and make them ready for assignment.
-- **Dispatch and assignment:** Match available riders to unassigned orders as shift manifests; surface rider load, current custody, and availability.
+- **Assignment and dispatch:** Match available riders to unassigned orders as shift manifests; surface rider load, current custody, and availability.
 - **Field execution:** Give the rider a low-friction PWA for picking up, delivering, capturing proof, and recording variance; tolerate poor connectivity.
 - **Cash custody and reconciliation:** Maintain the rider cash ledger with per-merchant sub-totals; close shifts with zero variance or explicit write-off; produce the audit trail.
 - **Returns and reattempts:** Manage the lifecycle of failed deliveries from first failed attempt through reattempt queue to return-to-merchant custody handover.

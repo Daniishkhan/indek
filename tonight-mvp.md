@@ -1,10 +1,10 @@
-# Dispatch — Tonight MVP Plan
+# Indek — Tonight MVP Plan
 
 ## Goal for tonight
 
 Get one thin but real slice of the product working end to end so the app stops being a scaffold and starts being a usable system.
 
-The goal is not to build all of Dispatch tonight.
+The goal is not to build all of Indek tonight.
 
 The goal is to make one core operational loop real.
 
@@ -212,7 +212,7 @@ Must include:
 - item summary
 - notes
 
-### 7. Dispatch / manifest assignment
+### 7. Assignment / manifest assignment
 
 Purpose:
 
