@@ -107,7 +107,10 @@ export default async function MerchantHomePage() {
                   <tr>
                     <th>AWB</th>
                     <th>Customer</th>
+                    <th>Pickup</th>
                     <th>State</th>
+                    <th>Avg charge</th>
+                    <th>Updated</th>
                     <th>COD</th>
                   </tr>
                 </thead>
@@ -116,7 +119,14 @@ export default async function MerchantHomePage() {
                     <tr key={parcel.id}>
                       <td>{parcel.awb}</td>
                       <td>{parcel.customerName}</td>
+                      <td>{parcel.pickupAddress ?? "Merchant pickup"}</td>
                       <td>{parcel.state.replace("_", " ")}</td>
+                      <td>
+                        {parcel.averageShippingChargeAed !== undefined
+                          ? formatCurrency(parcel.averageShippingChargeAed)
+                          : "Pending"}
+                      </td>
+                      <td>{new Date(parcel.lastUpdateAt).toLocaleString()}</td>
                       <td>{formatCurrency(parcel.codAmountAed)}</td>
                     </tr>
                   ))}

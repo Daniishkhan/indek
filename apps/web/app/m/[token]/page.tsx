@@ -1,12 +1,15 @@
 import { getMerchantPortalData } from "@indek/domain";
 import { notFound } from "next/navigation";
 import { createMerchantParcelAction } from "@/app/actions";
+import { AppShell } from "@/components/app-shell";
+import { MerchantRequestForm } from "@/components/merchant-request-form";
+import { getCurrentSession } from "@/lib/session";
 
 export const dynamic = "force-dynamic";
 
 const NOTICE_COPY: Record<string, string> = {
   "order-submitted":
-    "Delivery request submitted. It is now visible in the operator queue.",
+    "Delivery request submitted. Ops can now see it in the in-app dispatch queue.",
 };
 
 function formatCurrency(value: number) {
@@ -24,7 +27,10 @@ export default async function MerchantPage({
     params,
     searchParams,
   ]);
-  const portal = await getMerchantPortalData(token);
+  const [portal, session] = await Promise.all([
+    getMerchantPortalData(token),
+    getCurrentSession(),
+  ]);
 
   if (!portal) {
     notFound();
@@ -32,9 +38,47 @@ export default async function MerchantPage({
 
   const { merchant, parcels, remittance, summary } = portal;
   const notice = noticeCode ? NOTICE_COPY[noticeCode] : undefined;
+  const sessionRole = (session?.user as { role?: string } | undefined)?.role;
+  const userLabel =
+    sessionRole === "merchant"
+      ? (session?.user.name ?? session?.user.email ?? undefined)
+      : undefined;
+  const actions =
+    sessionRole === "merchant"
+      ? [
+          { href: "/merchant", label: "Workspace", tone: "secondary" as const },
+          { href: "/sign-out", label: "Sign out", tone: "secondary" as const },
+        ]
+      : [
+          {
+            href: "/sign-in/merchant",
+            label: "Merchant sign in",
+            tone: "secondary" as const,
+          },
+          { href: "/", label: "Site home", tone: "secondary" as const },
+        ];
 
   return (
-    <main className="shell">
+    <AppShell
+      actions={actions}
+      description="Place delivery requests and watch the same live status updates the operator and rider surfaces are using."
+      navItems={[
+        {
+          href: `/m/${merchant.token}`,
+          label: "Request portal",
+          caption: "Create orders and follow live status",
+          matchPrefix: "/m/",
+        },
+        {
+          href: "/merchant",
+          label: "Merchant workspace",
+          caption: "Signed-in visibility and remittance view",
+        },
+      ]}
+      role="merchant"
+      title={`${merchant.name} portal`}
+      userLabel={userLabel}
+    >
       <section className="hero">
         <div className="eyebrow">Merchant portal</div>
         <h1>{merchant.name}</h1>
@@ -77,89 +121,19 @@ export default async function MerchantPage({
             <div className="eyebrow">Request a pickup</div>
             <h2>Create a new delivery order</h2>
             <p>
-              This request lands directly in Indek as an unassigned parcel for
-              the operator team.
+              Enter the pickup and delivery addresses first so Indek can show
+              the average shipping charge before you submit. Once sent, the
+              admin sees the new delivery inside the operator console and can
+              assign it from dispatch.
             </p>
           </div>
 
           {notice ? <div className="notice success">{notice}</div> : null}
 
-          <form action={createMerchantParcelAction} className="stack">
-            <input name="token" type="hidden" value={merchant.token} />
-
-            <div className="form-grid">
-              <label className="form-field">
-                <span className="label">Customer name</span>
-                <input
-                  className="input"
-                  name="customerName"
-                  placeholder="Maha Saeed"
-                  required
-                />
-              </label>
-              <label className="form-field">
-                <span className="label">Customer phone</span>
-                <input
-                  className="input"
-                  name="customerPhone"
-                  placeholder="+971 50 111 2233"
-                  required
-                />
-              </label>
-              <label className="form-field">
-                <span className="label">Area</span>
-                <input
-                  className="input"
-                  name="area"
-                  placeholder="JVC"
-                  required
-                />
-              </label>
-              <label className="form-field">
-                <span className="label">COD amount</span>
-                <input
-                  className="input"
-                  defaultValue="0"
-                  min="0"
-                  name="codAmountAed"
-                  step="0.01"
-                  type="number"
-                />
-              </label>
-              <label className="form-field">
-                <span className="label">Item summary</span>
-                <input
-                  className="input"
-                  name="itemSummary"
-                  placeholder="Dessert box"
-                  required
-                />
-              </label>
-            </div>
-
-            <label className="form-field">
-              <span className="label">Address</span>
-              <textarea
-                className="textarea"
-                name="address"
-                placeholder="Belgravia Heights, Tower B, apt 307"
-                required
-              />
-            </label>
-
-            <label className="form-field">
-              <span className="label">Notes</span>
-              <textarea
-                className="textarea"
-                name="notes"
-                placeholder="Call before arrival or leave with reception."
-              />
-            </label>
-
-            <button className="button" type="submit">
-              Submit delivery request
-            </button>
-          </form>
+          <MerchantRequestForm
+            action={createMerchantParcelAction}
+            merchant={merchant}
+          />
         </article>
 
         <aside className="panel stack">
@@ -236,7 +210,19 @@ export default async function MerchantPage({
                   {parcel.area} · {parcel.itemSummary} ·{" "}
                   {formatCurrency(parcel.codAmountAed)}
                 </div>
-                <div className="muted">{parcel.address}</div>
+                {parcel.pickupAddress ? (
+                  <div className="muted">Pickup: {parcel.pickupAddress}</div>
+                ) : null}
+                {parcel.averageShippingChargeAed !== undefined ? (
+                  <div className="muted">
+                    Average shipping charge:{" "}
+                    {formatCurrency(parcel.averageShippingChargeAed)}
+                  </div>
+                ) : null}
+                <div className="muted">
+                  Updated {new Date(parcel.lastUpdateAt).toLocaleString()}
+                </div>
+                <div className="muted">Dropoff: {parcel.address}</div>
               </div>
             ))}
           </div>
@@ -250,6 +236,6 @@ export default async function MerchantPage({
           </div>
         )}
       </section>
-    </main>
+    </AppShell>
   );
 }

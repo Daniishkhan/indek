@@ -211,7 +211,9 @@ export default async function IntakePage({
             <h2>Create a parcel request from ops</h2>
             <p>
               Use this when the merchant sends a WhatsApp message or spreadsheet
-              instead of using their portal directly.
+              instead of using their portal directly. Capture both pickup and
+              delivery details so the request matches the merchant-side
+              workflow.
             </p>
           </div>
 
@@ -247,7 +249,7 @@ export default async function IntakePage({
                 />
               </label>
               <label className="form-field">
-                <span className="label">Area</span>
+                <span className="label">Delivery area</span>
                 <input
                   className="input"
                   name="area"
@@ -278,7 +280,17 @@ export default async function IntakePage({
             </div>
 
             <label className="form-field">
-              <span className="label">Address</span>
+              <span className="label">Pickup address</span>
+              <textarea
+                className="textarea"
+                name="pickupAddress"
+                placeholder="Bloom Boutique, Al Quoz industrial area 3, warehouse gate 2"
+                required
+              />
+            </label>
+
+            <label className="form-field">
+              <span className="label">Delivery address</span>
               <textarea
                 className="textarea"
                 name="address"
@@ -366,6 +378,17 @@ export default async function IntakePage({
                     <div className="muted">
                       {parcel.merchantName ?? "Merchant"} · {parcel.area}
                     </div>
+                    {parcel.pickupAddress ? (
+                      <div className="muted">
+                        Pickup: {parcel.pickupAddress}
+                      </div>
+                    ) : null}
+                    {parcel.averageShippingChargeAed !== undefined ? (
+                      <div className="muted">
+                        Average shipping charge:{" "}
+                        {formatCurrency(parcel.averageShippingChargeAed)}
+                      </div>
+                    ) : null}
                   </div>
                 ))}
               </div>

@@ -1,7 +1,8 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
+import { getMerchantForUser } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
+import { AppShell } from "@/components/app-shell";
 
 export default async function MerchantLayout({
   children,
@@ -15,29 +16,38 @@ export default async function MerchantLayout({
   }
 
   const name = session.user.name ?? session.user.email;
+  const merchant = await getMerchantForUser(session.user.id);
+  const navItems = [
+    {
+      href: "/merchant",
+      label: "Overview",
+      caption: "Status visibility and remittance summary",
+    },
+    ...(merchant
+      ? [
+          {
+            href: `/m/${merchant.token}`,
+            label: "Request portal",
+            caption: "Open the bare MVP order entry surface",
+            matchPrefix: "/m/",
+          },
+        ]
+      : []),
+  ];
 
   return (
-    <main className="shell">
-      <header className="panel topbar">
-        <div>
-          <div className="eyebrow">Merchant workspace</div>
-          <h1 style={{ margin: 0 }}>Merchant visibility</h1>
-        </div>
-        <nav className="nav-links">
-          <Link href="/merchant">Overview</Link>
-          <span
-            style={{
-              padding: "10px 14px",
-              color: "var(--muted-foreground)",
-              fontSize: "0.85rem",
-            }}
-          >
-            {name}
-          </span>
-          <Link href="/sign-out">Sign out</Link>
-        </nav>
-      </header>
+    <AppShell
+      actions={[
+        { href: "/", label: "Site home", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+      ]}
+      description="Follow parcel status, see delivered and failed outcomes, and keep merchant-facing visibility on the same request loop."
+      navItems={navItems}
+      role="merchant"
+      title="Merchant workspace"
+      userLabel={name}
+    >
       {children}
-    </main>
+    </AppShell>
   );
 }

@@ -1,7 +1,15 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
+import { AppShell } from "@/components/app-shell";
+
+const links = [
+  {
+    href: "/rider",
+    label: "Manifest",
+    caption: "Accept assigned work and resolve delivery outcomes",
+  },
+];
 
 export default async function RiderLayout({
   children,
@@ -13,19 +21,21 @@ export default async function RiderLayout({
     redirect(getRoleHome(role));
   }
 
+  const name = session.user.name ?? session.user.email;
+
   return (
-    <main className="shell" style={{ width: "min(560px, calc(100vw - 20px))" }}>
-      <header className="panel topbar">
-        <div>
-          <div className="eyebrow">Rider PWA</div>
-          <h1 style={{ margin: 0 }}>Shift companion</h1>
-        </div>
-        <div className="nav-links">
-          <Link href="/rider">Manifest</Link>
-          <Link href="/sign-out">Sign out</Link>
-        </div>
-      </header>
+    <AppShell
+      actions={[
+        { href: "/", label: "Site home", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+      ]}
+      description="Keep the field workflow simple: accept the manifest, complete deliveries, and push live status back to operations."
+      navItems={links}
+      role="rider"
+      title="Rider shift workspace"
+      userLabel={name}
+    >
       {children}
-    </main>
+    </AppShell>
   );
 }

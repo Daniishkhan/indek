@@ -31,6 +31,7 @@ export default async function DispatchBoardPage({
     searchParams,
   ]);
   const notice = params.notice ? NOTICE_COPY[params.notice] : undefined;
+  const nextParcel = parcels[0];
 
   return (
     <section className="grid">
@@ -47,6 +48,14 @@ export default async function DispatchBoardPage({
 
         {notice ? (
           <div className={`notice ${notice.tone}`}>{notice.text}</div>
+        ) : null}
+
+        {parcels.length > 0 ? (
+          <div className="notice warn">
+            New delivery in queue: {nextParcel?.customerName} from{" "}
+            {nextParcel?.merchantName ?? "Merchant"} is waiting for admin
+            assignment here in the dispatch board.
+          </div>
         ) : null}
 
         {riders.length > 0 && parcels.length > 0 ? (
@@ -80,7 +89,18 @@ export default async function DispatchBoardPage({
                       <div className="muted">
                         {parcel.merchantName ?? "Merchant"} · {parcel.area}
                       </div>
-                      <div className="muted">{parcel.address}</div>
+                      {parcel.pickupAddress ? (
+                        <div className="muted">
+                          Pickup: {parcel.pickupAddress}
+                        </div>
+                      ) : null}
+                      <div className="muted">Dropoff: {parcel.address}</div>
+                      {parcel.averageShippingChargeAed !== undefined ? (
+                        <div className="muted">
+                          Average shipping charge:{" "}
+                          {formatCurrency(parcel.averageShippingChargeAed)}
+                        </div>
+                      ) : null}
                     </div>
                   </div>
                 </label>

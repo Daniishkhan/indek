@@ -1,5 +1,5 @@
 import { randomUUID } from "node:crypto";
-import { asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray } from "drizzle-orm";
 import {
   events,
   getDb,
@@ -10,6 +10,12 @@ import {
   riderProfile,
   riders,
 } from "@indek/db";
+import {
+  encodeParcelWorkflowNotes,
+  failureReasons,
+  parseParcelWorkflowNotes,
+  type FailureReason,
+} from "@indek/shared";
 import type {
   DispatchBoardData,
   EventLogEntry,
@@ -26,12 +32,14 @@ import type {
   Rider,
 } from "@indek/shared";
 
-const ACTIVE_CUSTODY_STATES = new Set([
+const ACTIVE_WORK_STATES = new Set<Parcel["state"]>(["assigned", "in_transit"]);
+const RIDER_CUSTODY_STATES = new Set<Parcel["state"]>([
   "assigned",
   "in_transit",
   "failed",
   "in_return",
 ]);
+const FAILURE_REASON_SET = new Set<FailureReason>(failureReasons);
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
@@ -105,6 +113,8 @@ function formatParcel(row: {
   createdAt: Date;
   updatedAt: Date;
 }): Parcel {
+  const workflowNotes = parseParcelWorkflowNotes(row.notes);
+
   return {
     id: row.id,
     awb: row.awb,
@@ -116,11 +126,13 @@ function formatParcel(row: {
     customerPhone: row.customerPhone,
     area: row.area,
     address: row.address,
+    pickupAddress: workflowNotes.pickupAddress,
     codAmountAed: roundCurrency(toNumber(row.codAmountAed)),
+    averageShippingChargeAed: workflowNotes.averageShippingChargeAed,
     state: row.state,
     lastUpdateAt: toIso(row.updatedAt),
     itemSummary: row.itemSummary ?? "Parcel request",
-    notes: row.notes ?? undefined,
+    notes: workflowNotes.customerNotes,
     createdAt: toIso(row.createdAt),
   };
 }
@@ -139,7 +151,7 @@ function formatRider(
   let lastEventAt = row.updatedAt;
 
   for (const parcel of parcelRows) {
-    if (ACTIVE_CUSTODY_STATES.has(parcel.state)) {
+    if (RIDER_CUSTODY_STATES.has(parcel.state)) {
       parcelsInCustody += 1;
     }
 
@@ -251,7 +263,7 @@ async function buildMerchantPortalData(
     remittance,
     summary: {
       activeCount: merchantParcels.filter((parcel) =>
-        ACTIVE_CUSTODY_STATES.has(parcel.state),
+        ACTIVE_WORK_STATES.has(parcel.state),
       ).length,
       deliveredCount: merchantParcels.filter(
         (parcel) => parcel.state === "delivered",
@@ -764,9 +776,11 @@ export async function createParcel(input: {
   merchantId: string;
   customerName: string;
   customerPhone: string;
+  pickupAddress: string;
   area: string;
   address: string;
   codAmountAed: number;
+  averageShippingChargeAed?: number;
   itemSummary: string;
   notes?: string;
   source: "operator" | "merchant";
@@ -776,6 +790,16 @@ export async function createParcel(input: {
   const db = getDb();
   const now = new Date();
   const parcelId = buildId("p");
+  const pickupAddress = input.pickupAddress.trim();
+  const averageShippingChargeAed =
+    typeof input.averageShippingChargeAed === "number"
+      ? roundCurrency(input.averageShippingChargeAed)
+      : undefined;
+  const storedNotes = encodeParcelWorkflowNotes({
+    pickupAddress,
+    averageShippingChargeAed,
+    customerNotes: input.notes,
+  });
 
   await db.transaction(async (tx) => {
     await tx.insert(parcels).values({
@@ -789,7 +813,7 @@ export async function createParcel(input: {
       codAmountAed: roundCurrency(input.codAmountAed).toFixed(2),
       state: "unassigned",
       itemSummary: input.itemSummary.trim(),
-      notes: input.notes?.trim() || null,
+      notes: storedNotes ?? null,
       createdAt: now,
       updatedAt: now,
     });
@@ -803,7 +827,11 @@ export async function createParcel(input: {
         input.actorLabel ??
         (input.source === "merchant" ? "Merchant portal" : "Operator"),
       location: input.area.trim(),
-      payload: { source: input.source },
+      payload: {
+        source: input.source,
+        pickupAddress,
+        averageShippingChargeAed,
+      },
       occurredAt: now,
     });
   });
@@ -922,5 +950,297 @@ export async function assignManifest(input: {
       })),
       riderRow?.name,
     );
+  });
+}
+
+export async function acceptManifest(
+  manifestId: string,
+  riderUserId: string,
+  actorLabel = "Rider",
+) {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const [riderLink] = await tx
+      .select({
+        riderId: riderProfile.riderId,
+        riderName: riders.name,
+      })
+      .from(riderProfile)
+      .innerJoin(riders, eq(riderProfile.riderId, riders.id))
+      .where(eq(riderProfile.userId, riderUserId))
+      .limit(1);
+
+    if (!riderLink) {
+      throw new Error("No rider profile is linked to this account.");
+    }
+
+    const manifest = await tx.query.manifests.findFirst({
+      where: and(
+        eq(manifests.id, manifestId),
+        eq(manifests.riderId, riderLink.riderId),
+      ),
+    });
+
+    if (!manifest) {
+      throw new Error("This manifest is not assigned to the signed-in rider.");
+    }
+
+    if (manifest.acceptedAt) {
+      throw new Error("This manifest has already been accepted.");
+    }
+
+    const manifestParcels = await tx
+      .select({
+        id: parcels.id,
+        merchantId: parcels.merchantId,
+        state: parcels.state,
+      })
+      .from(parcels)
+      .where(
+        and(
+          eq(parcels.manifestId, manifestId),
+          eq(parcels.riderId, riderLink.riderId),
+        ),
+      );
+
+    const assignedParcels = manifestParcels.filter(
+      (parcel) => parcel.state === "assigned",
+    );
+
+    if (assignedParcels.length === 0) {
+      throw new Error("There are no assigned parcels left on this manifest.");
+    }
+
+    const merchantIds = Array.from(
+      new Set(assignedParcels.map((parcel) => parcel.merchantId)),
+    );
+    const merchantRows =
+      merchantIds.length > 0
+        ? await tx
+            .select({
+              id: merchants.id,
+              token: merchants.token,
+            })
+            .from(merchants)
+            .where(inArray(merchants.id, merchantIds))
+        : [];
+
+    const now = new Date();
+
+    await tx
+      .update(manifests)
+      .set({
+        acceptedAt: now,
+      })
+      .where(eq(manifests.id, manifestId));
+
+    await tx
+      .update(parcels)
+      .set({
+        state: "in_transit",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(parcels.manifestId, manifestId),
+          eq(parcels.riderId, riderLink.riderId),
+          eq(parcels.state, "assigned"),
+        ),
+      );
+
+    await tx
+      .update(riders)
+      .set({
+        status: "on_shift",
+        updatedAt: now,
+      })
+      .where(eq(riders.id, riderLink.riderId));
+
+    await tx.insert(events).values(
+      assignedParcels.map((parcel) => ({
+        id: buildId("evt"),
+        parcelId: parcel.id,
+        type: "parcel.in_transit",
+        actorUserId: riderUserId,
+        actorLabel,
+        location: manifest.zoneSummary ?? "On route",
+        payload: { manifestId, state: "in_transit" },
+        occurredAt: now,
+      })),
+    );
+
+    return {
+      manifestId,
+      merchantTokens: merchantRows.map((merchant) => merchant.token),
+      riderId: riderLink.riderId,
+    };
+  });
+}
+
+export async function recordParcelDelivered(
+  parcelId: string,
+  riderUserId: string,
+  actorLabel = "Rider",
+) {
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const [riderLink] = await tx
+      .select({
+        riderId: riderProfile.riderId,
+      })
+      .from(riderProfile)
+      .where(eq(riderProfile.userId, riderUserId))
+      .limit(1);
+
+    if (!riderLink) {
+      throw new Error("No rider profile is linked to this account.");
+    }
+
+    const parcel = await tx
+      .select({
+        id: parcels.id,
+        manifestId: parcels.manifestId,
+        merchantId: parcels.merchantId,
+        state: parcels.state,
+      })
+      .from(parcels)
+      .where(
+        and(eq(parcels.id, parcelId), eq(parcels.riderId, riderLink.riderId)),
+      )
+      .limit(1);
+
+    const currentParcel = parcel[0];
+
+    if (!currentParcel) {
+      throw new Error("This parcel is not assigned to the signed-in rider.");
+    }
+
+    if (currentParcel.state !== "in_transit") {
+      throw new Error("Only in-transit parcels can be marked delivered.");
+    }
+
+    const [merchantRow] = await tx
+      .select({
+        token: merchants.token,
+      })
+      .from(merchants)
+      .where(eq(merchants.id, currentParcel.merchantId))
+      .limit(1);
+
+    const now = new Date();
+
+    await tx
+      .update(parcels)
+      .set({
+        state: "delivered",
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, parcelId));
+
+    await tx.insert(events).values({
+      id: buildId("evt"),
+      parcelId,
+      type: "parcel.delivered",
+      actorUserId: riderUserId,
+      actorLabel,
+      location: "Customer doorstep",
+      payload: { state: "delivered", manifestId: currentParcel.manifestId },
+      occurredAt: now,
+    });
+
+    return {
+      merchantToken: merchantRow?.token,
+      riderId: riderLink.riderId,
+    };
+  });
+}
+
+export async function recordParcelFailed(
+  parcelId: string,
+  riderUserId: string,
+  reason: FailureReason,
+  actorLabel = "Rider",
+) {
+  if (!FAILURE_REASON_SET.has(reason)) {
+    throw new Error("A valid failure reason is required.");
+  }
+
+  const db = getDb();
+
+  return db.transaction(async (tx) => {
+    const [riderLink] = await tx
+      .select({
+        riderId: riderProfile.riderId,
+      })
+      .from(riderProfile)
+      .where(eq(riderProfile.userId, riderUserId))
+      .limit(1);
+
+    if (!riderLink) {
+      throw new Error("No rider profile is linked to this account.");
+    }
+
+    const parcel = await tx
+      .select({
+        id: parcels.id,
+        manifestId: parcels.manifestId,
+        merchantId: parcels.merchantId,
+        state: parcels.state,
+      })
+      .from(parcels)
+      .where(
+        and(eq(parcels.id, parcelId), eq(parcels.riderId, riderLink.riderId)),
+      )
+      .limit(1);
+
+    const currentParcel = parcel[0];
+
+    if (!currentParcel) {
+      throw new Error("This parcel is not assigned to the signed-in rider.");
+    }
+
+    if (currentParcel.state !== "in_transit") {
+      throw new Error("Only in-transit parcels can be marked failed.");
+    }
+
+    const [merchantRow] = await tx
+      .select({
+        token: merchants.token,
+      })
+      .from(merchants)
+      .where(eq(merchants.id, currentParcel.merchantId))
+      .limit(1);
+
+    const now = new Date();
+
+    await tx
+      .update(parcels)
+      .set({
+        state: "failed",
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, parcelId));
+
+    await tx.insert(events).values({
+      id: buildId("evt"),
+      parcelId,
+      type: "parcel.failed",
+      actorUserId: riderUserId,
+      actorLabel,
+      location: "Delivery attempt",
+      payload: {
+        state: "failed",
+        manifestId: currentParcel.manifestId,
+        reason,
+      },
+      occurredAt: now,
+    });
+
+    return {
+      merchantToken: merchantRow?.token,
+      riderId: riderLink.riderId,
+    };
   });
 }

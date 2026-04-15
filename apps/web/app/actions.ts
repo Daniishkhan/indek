@@ -3,14 +3,23 @@
 import { redirect } from "next/navigation";
 import { revalidatePath } from "next/cache";
 import {
+  acceptManifest,
   assignManifest,
   createMerchant,
   createParcel,
   createRider,
   getMerchantById,
   getMerchantByToken,
+  recordParcelDelivered,
+  recordParcelFailed,
 } from "@indek/domain";
-import type { ProofRequirement, RemittanceCycle } from "@indek/shared";
+import {
+  estimateAverageShippingCharge,
+  failureReasons,
+  type FailureReason,
+  type ProofRequirement,
+  type RemittanceCycle,
+} from "@indek/shared";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome, roleConfig } from "@/lib/role-config";
 
@@ -37,6 +46,26 @@ function getNumber(formData: FormData, key: string, fallback = 0) {
   return Number.isFinite(value) ? value : fallback;
 }
 
+function getAverageShippingCharge(
+  formData: FormData,
+  baseFeeAed: number,
+  fallbackPickupAddress: string,
+) {
+  const submittedValue = Number.parseFloat(
+    getText(formData, "averageShippingChargeAed"),
+  );
+  if (Number.isFinite(submittedValue) && submittedValue >= 0) {
+    return submittedValue;
+  }
+
+  return estimateAverageShippingCharge({
+    baseFeeAed,
+    pickupAddress: getText(formData, "pickupAddress") || fallbackPickupAddress,
+    deliveryArea: getText(formData, "area"),
+    deliveryAddress: getText(formData, "address"),
+  }).averageChargeAed;
+}
+
 function withNotice(path: string, notice: string) {
   const separator = path.includes("?") ? "&" : "?";
   return `${path}${separator}notice=${encodeURIComponent(notice)}`;
@@ -45,6 +74,7 @@ function withNotice(path: string, notice: string) {
 function revalidateOperatorSurfaces(extraPaths: string[] = []) {
   for (const path of [
     "/",
+    "/merchant",
     "/operator",
     "/operator/intake",
     "/operator/dispatch",
@@ -52,6 +82,24 @@ function revalidateOperatorSurfaces(extraPaths: string[] = []) {
     ...extraPaths,
   ]) {
     revalidatePath(path);
+  }
+}
+
+function revalidateDeliverySurfaces(input: {
+  merchantTokens?: string[];
+  riderId?: string;
+}) {
+  revalidateOperatorSurfaces();
+  revalidatePath("/rider");
+  revalidatePath("/m/[token]", "page");
+  revalidatePath("/operator/reconciliation/[riderId]", "page");
+
+  if (input.riderId) {
+    revalidatePath(`/operator/reconciliation/${input.riderId}`);
+  }
+
+  for (const token of input.merchantTokens ?? []) {
+    revalidatePath(`/m/${token}`);
   }
 }
 
@@ -71,6 +119,25 @@ async function requireOperator(nextPath: string) {
   return {
     userId: session.user.id,
     label: session.user.name ?? session.user.email ?? "Operator",
+  };
+}
+
+async function requireRider(nextPath: string) {
+  const session = await getCurrentSession();
+  if (!session) {
+    redirect(
+      `${roleConfig.rider.signInPath}?next=${encodeURIComponent(nextPath)}`,
+    );
+  }
+
+  const role = (session.user as { role?: string }).role;
+  if (role !== "rider") {
+    redirect(getRoleHome(role));
+  }
+
+  return {
+    userId: session.user.id,
+    label: session.user.name ?? session.user.email ?? "Rider",
   };
 }
 
@@ -151,9 +218,16 @@ export async function createOperatorParcelAction(formData: FormData) {
     merchantId: merchant.id,
     customerName: getText(formData, "customerName"),
     customerPhone: getText(formData, "customerPhone"),
+    pickupAddress:
+      getText(formData, "pickupAddress") || `${merchant.name} pickup`,
     area: getText(formData, "area"),
     address: getText(formData, "address"),
     codAmountAed: getNumber(formData, "codAmountAed", 0),
+    averageShippingChargeAed: getAverageShippingCharge(
+      formData,
+      merchant.deliveryFeeAed,
+      `${merchant.name} pickup`,
+    ),
     itemSummary: getText(formData, "itemSummary"),
     notes: getText(formData, "notes"),
     source: "operator",
@@ -177,9 +251,16 @@ export async function createMerchantParcelAction(formData: FormData) {
     merchantId: merchant.id,
     customerName: getText(formData, "customerName"),
     customerPhone: getText(formData, "customerPhone"),
+    pickupAddress:
+      getText(formData, "pickupAddress") || `${merchant.name} pickup`,
     area: getText(formData, "area"),
     address: getText(formData, "address"),
     codAmountAed: getNumber(formData, "codAmountAed", 0),
+    averageShippingChargeAed: getAverageShippingCharge(
+      formData,
+      merchant.deliveryFeeAed,
+      `${merchant.name} pickup`,
+    ),
     itemSummary: getText(formData, "itemSummary"),
     notes: getText(formData, "notes"),
     source: "merchant",
@@ -216,4 +297,73 @@ export async function assignManifestAction(formData: FormData) {
 
   revalidateOperatorSurfaces();
   redirect(withNotice("/operator/dispatch", "manifest-created"));
+}
+
+export async function acceptManifestAction(formData: FormData) {
+  const actor = await requireRider("/rider");
+  const manifestId = getText(formData, "manifestId");
+
+  if (!manifestId) {
+    redirect(withNotice("/rider", "manifest-accept-failed"));
+  }
+
+  let result: Awaited<ReturnType<typeof acceptManifest>>;
+  try {
+    result = await acceptManifest(manifestId, actor.userId, actor.label);
+  } catch {
+    redirect(withNotice("/rider", "manifest-accept-failed"));
+  }
+
+  revalidateDeliverySurfaces(result);
+  redirect(withNotice("/rider", "manifest-accepted"));
+}
+
+export async function recordParcelDeliveredAction(formData: FormData) {
+  const actor = await requireRider("/rider");
+  const parcelId = getText(formData, "parcelId");
+
+  if (!parcelId) {
+    redirect(withNotice("/rider", "delivery-failed"));
+  }
+
+  let result: Awaited<ReturnType<typeof recordParcelDelivered>>;
+  try {
+    result = await recordParcelDelivered(parcelId, actor.userId, actor.label);
+  } catch {
+    redirect(withNotice("/rider", "delivery-failed"));
+  }
+
+  revalidateDeliverySurfaces({
+    merchantTokens: result.merchantToken ? [result.merchantToken] : [],
+    riderId: result.riderId,
+  });
+  redirect(withNotice("/rider", "parcel-delivered"));
+}
+
+export async function recordParcelFailedAction(formData: FormData) {
+  const actor = await requireRider("/rider");
+  const parcelId = getText(formData, "parcelId");
+  const reasonValue = getText(formData, "reason");
+
+  if (!parcelId || !failureReasons.includes(reasonValue as FailureReason)) {
+    redirect(withNotice("/rider", "failure-reason-required"));
+  }
+
+  let result: Awaited<ReturnType<typeof recordParcelFailed>>;
+  try {
+    result = await recordParcelFailed(
+      parcelId,
+      actor.userId,
+      reasonValue as FailureReason,
+      actor.label,
+    );
+  } catch {
+    redirect(withNotice("/rider", "delivery-failed"));
+  }
+
+  revalidateDeliverySurfaces({
+    merchantTokens: result.merchantToken ? [result.merchantToken] : [],
+    riderId: result.riderId,
+  });
+  redirect(withNotice("/rider", "parcel-failed"));
 }

@@ -8,9 +8,31 @@ function formatCurrency(value: number) {
 export default async function OperatorOverviewPage() {
   const { manifests, merchants, recentParcels, riders, snapshot, unassigned } =
     await getOperatorOverviewData();
+  const newestRequest = unassigned[0];
 
   return (
     <>
+      {unassigned.length > 0 ? (
+        <section className="notice warn workflow-alert">
+          <div className="stack-tight">
+            <div className="label">New delivery request</div>
+            <strong>
+              {unassigned.length} delivery
+              {unassigned.length === 1 ? "" : "ies"} waiting for assignment
+            </strong>
+            <span className="muted">
+              {newestRequest?.customerName} from{" "}
+              {newestRequest?.merchantName ?? "Merchant"} just landed in the
+              unassigned queue. Treat this as the admin notification for the
+              workflow.
+            </span>
+          </div>
+          <Link className="button secondary" href="/operator/dispatch">
+            Open dispatch board
+          </Link>
+        </section>
+      ) : null}
+
       <section className="stats-grid">
         <article className="metric">
           <div className="label">Merchant customers</div>
@@ -143,6 +165,15 @@ export default async function OperatorOverviewPage() {
                   <div className="muted">
                     {parcel.merchantName ?? "Merchant"} · {parcel.area}
                   </div>
+                  {parcel.pickupAddress ? (
+                    <div className="muted">Pickup: {parcel.pickupAddress}</div>
+                  ) : null}
+                  {parcel.averageShippingChargeAed !== undefined ? (
+                    <div className="muted">
+                      Average shipping charge:{" "}
+                      {formatCurrency(parcel.averageShippingChargeAed)}
+                    </div>
+                  ) : null}
                 </div>
               ))}
             </div>

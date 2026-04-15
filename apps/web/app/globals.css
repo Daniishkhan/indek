@@ -115,6 +115,13 @@ body {
   font-style: normal;
   font-feature-settings: "ss01", "cv11";
   letter-spacing: var(--tracking-normal);
+  background:
+    radial-gradient(
+      circle at top left,
+      rgba(91, 62, 199, 0.08),
+      transparent 26%
+    ),
+    linear-gradient(180deg, var(--surface-muted) 0, var(--background) 280px);
 }
 
 a {
@@ -143,6 +150,198 @@ main {
 .shell {
   display: grid;
   gap: 24px;
+}
+
+.app-shell {
+  width: min(1400px, calc(100vw - 32px));
+  margin: 0 auto;
+  padding: 24px 0 64px;
+  display: grid;
+  grid-template-columns: 280px minmax(0, 1fr);
+  gap: 20px;
+  align-items: start;
+}
+
+.app-sidebar,
+.app-header {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-sm);
+}
+
+.app-sidebar {
+  position: sticky;
+  top: 24px;
+  display: grid;
+  gap: 18px;
+  padding: 22px;
+  background:
+    linear-gradient(
+      180deg,
+      rgba(255, 255, 255, 0.94),
+      rgba(247, 246, 251, 0.98)
+    ),
+    var(--surface);
+}
+
+.app-sidebar-top {
+  display: grid;
+  gap: 16px;
+}
+
+.app-brand {
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 12px;
+  align-items: center;
+}
+
+.app-brand strong {
+  display: block;
+  font-size: 1rem;
+  letter-spacing: var(--tracking-tight);
+}
+
+.app-brand-mark {
+  display: inline-flex;
+  width: 44px;
+  height: 44px;
+  align-items: center;
+  justify-content: center;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--primary), var(--accent));
+  color: var(--primary-foreground);
+  box-shadow: var(--shadow-md);
+  font-weight: 700;
+  letter-spacing: var(--tracking-tight);
+}
+
+.app-role-card {
+  display: grid;
+  gap: 10px;
+  padding: 18px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(91, 62, 199, 0.12);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 234, 254, 0.9),
+    rgba(253, 239, 225, 0.55)
+  );
+}
+
+.app-role-card h2,
+.app-header-title {
+  margin: 0;
+  letter-spacing: var(--tracking-tight);
+}
+
+.app-header-title {
+  font-size: clamp(1.55rem, 2.1vw, 2.1rem);
+  font-weight: 700;
+}
+
+.app-nav {
+  display: grid;
+  gap: 8px;
+}
+
+.app-nav-link {
+  display: grid;
+  gap: 4px;
+  padding: 14px 16px;
+  border-radius: var(--radius-md);
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.72);
+  color: var(--muted-strong);
+  transition:
+    transform 160ms ease,
+    border-color 160ms ease,
+    background 160ms ease,
+    box-shadow 160ms ease;
+}
+
+.app-nav-link:hover {
+  transform: translateY(-1px);
+  border-color: rgba(91, 62, 199, 0.22);
+  background: rgba(239, 234, 254, 0.72);
+  box-shadow: var(--shadow-xs);
+}
+
+.app-nav-link.active {
+  border-color: rgba(91, 62, 199, 0.32);
+  background: linear-gradient(
+    135deg,
+    var(--primary-soft),
+    rgba(253, 239, 225, 0.7)
+  );
+  box-shadow: var(--shadow-xs);
+}
+
+.app-nav-label {
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.app-nav-caption {
+  font-size: 0.84rem;
+  color: var(--muted);
+  line-height: 1.4;
+}
+
+.app-sidebar-foot {
+  display: grid;
+  gap: 8px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.app-frame,
+.app-content {
+  display: grid;
+  gap: 20px;
+  min-width: 0;
+}
+
+.app-header {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: space-between;
+  gap: 18px;
+  align-items: center;
+  padding: 22px 24px;
+  background: rgba(255, 255, 255, 0.84);
+  backdrop-filter: blur(14px);
+}
+
+.app-header-copy {
+  display: grid;
+  gap: 8px;
+  max-width: 58ch;
+}
+
+.app-header-copy .eyebrow {
+  margin-bottom: 0;
+}
+
+.app-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 10px;
+}
+
+.app-user-chip {
+  display: inline-flex;
+  align-items: center;
+  min-height: 44px;
+  padding: 0 16px;
+  border-radius: 999px;
+  border: 1px solid var(--border);
+  background: rgba(255, 255, 255, 0.88);
+  color: var(--muted-strong);
+  font-size: 0.92rem;
+  font-weight: 600;
 }
 
 .hero,
@@ -313,39 +512,6 @@ main {
   font-weight: 600;
 }
 
-.topbar {
-  display: flex;
-  flex-wrap: wrap;
-  justify-content: space-between;
-  align-items: center;
-  gap: 16px;
-}
-
-.nav-links {
-  display: flex;
-  flex-wrap: wrap;
-  gap: 8px;
-}
-
-.nav-links a {
-  padding: 8px 14px;
-  border-radius: 999px;
-  background: var(--surface);
-  border: 1px solid var(--border);
-  font-size: 0.9rem;
-  color: var(--muted-strong);
-  transition:
-    background 140ms ease,
-    color 140ms ease,
-    border-color 140ms ease;
-}
-
-.nav-links a:hover {
-  background: var(--primary-soft);
-  color: var(--primary);
-  border-color: var(--primary-soft);
-}
-
 .two-col {
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
@@ -447,6 +613,32 @@ main {
   color: var(--accent-hover);
 }
 
+.workflow-alert {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.estimate-card {
+  display: grid;
+  gap: 12px;
+  padding: 20px;
+  border-radius: var(--radius-md);
+  border: 1px solid rgba(91, 62, 199, 0.14);
+  background: linear-gradient(
+    135deg,
+    rgba(239, 234, 254, 0.92),
+    rgba(255, 255, 255, 0.96)
+  );
+  box-shadow: var(--shadow-xs);
+}
+
+.estimate-card .metric-value {
+  margin: 6px 0 0;
+}
+
 .empty-state {
   display: grid;
   gap: 8px;
@@ -500,7 +692,38 @@ main {
   font-size: 0.92rem;
 }
 
+.action-stack {
+  display: grid;
+  gap: 12px;
+}
+
+.action-form {
+  display: grid;
+  gap: 12px;
+  grid-template-columns: minmax(0, 1fr) auto;
+  align-items: end;
+}
+
 @media (max-width: 900px) {
+  .app-shell {
+    width: min(100vw - 20px, 1400px);
+    grid-template-columns: 1fr;
+    padding-top: 18px;
+  }
+  .app-sidebar {
+    position: static;
+    padding: 18px;
+  }
+  .app-nav {
+    grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  }
+  .app-header {
+    padding: 18px;
+  }
+  .app-toolbar {
+    width: 100%;
+    justify-content: flex-start;
+  }
   .grid {
     grid-template-columns: 1fr;
   }
@@ -511,6 +734,24 @@ main {
   .hero,
   .panel {
     padding: 22px;
+  }
+  .action-form {
+    grid-template-columns: 1fr;
+  }
+}
+
+@media (max-width: 640px) {
+  .app-nav {
+    grid-template-columns: 1fr;
+  }
+  .app-brand {
+    grid-template-columns: auto 1fr;
+  }
+  .app-toolbar .button,
+  .app-user-chip,
+  .workflow-alert .button {
+    width: 100%;
+    justify-content: center;
   }
 }
 

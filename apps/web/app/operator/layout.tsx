@@ -1,14 +1,29 @@
-import Link from "next/link";
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
+import { AppShell } from "@/components/app-shell";
 
 const links = [
-  { href: "/operator", label: "Overview" },
-  { href: "/operator/intake", label: "Intake" },
-  { href: "/operator/dispatch", label: "Board" },
-  { href: "/operator/live", label: "Live Ops" },
-  { href: "/operator/reconciliation/r-umar", label: "Reconciliation" },
+  {
+    href: "/operator",
+    label: "Overview",
+    caption: "Snapshot, recent requests, and queue pressure",
+  },
+  {
+    href: "/operator/intake",
+    label: "Intake",
+    caption: "Create merchants, riders, and manual orders",
+  },
+  {
+    href: "/operator/dispatch",
+    label: "Dispatch",
+    caption: "Assign unassigned requests into rider manifests",
+  },
+  {
+    href: "/operator/live",
+    label: "Live ops",
+    caption: "Watch rider load and cash exposure",
+  },
 ];
 
 export default async function OperatorLayout({
@@ -24,31 +39,18 @@ export default async function OperatorLayout({
   const name = session.user.name ?? session.user.email;
 
   return (
-    <main className="shell">
-      <header className="panel topbar">
-        <div>
-          <div className="eyebrow">Operator console</div>
-          <h1 style={{ margin: 0 }}>Indek control plane</h1>
-        </div>
-        <nav className="nav-links">
-          {links.map((link) => (
-            <Link key={link.href} href={link.href}>
-              {link.label}
-            </Link>
-          ))}
-          <span
-            style={{
-              padding: "10px 14px",
-              color: "var(--muted-foreground)",
-              fontSize: "0.85rem",
-            }}
-          >
-            {name}
-          </span>
-          <Link href="/sign-out">Sign out</Link>
-        </nav>
-      </header>
+    <AppShell
+      actions={[
+        { href: "/", label: "Site home", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+      ]}
+      description="Run the merchant request loop, dispatch riders, and monitor live COD operations from one control surface."
+      navItems={links}
+      role="operator"
+      title="Operator control plane"
+      userLabel={name}
+    >
       {children}
-    </main>
+    </AppShell>
   );
 }
