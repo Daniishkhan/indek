@@ -1,11 +1,13 @@
+import Link from "next/link";
+import { AlertCircle, Package, Truck, Wallet } from "lucide-react";
 import { getDispatchBoardData } from "@indek/domain";
-import { assignManifestAction } from "@/app/actions";
+import { DispatchBoard } from "@/components/dispatch-board";
 
 const NOTICE_COPY: Record<string, { tone: "success" | "warn"; text: string }> =
   {
     "manifest-created": {
       tone: "success",
-      text: "Manifest assigned. The selected parcels are now attached to a rider.",
+      text: "Manifest assigned. Selected parcels are now attached to the rider.",
     },
     "manifest-missing-selection": {
       tone: "warn",
@@ -18,7 +20,12 @@ const NOTICE_COPY: Record<string, { tone: "success" | "warn"; text: string }> =
   };
 
 function formatCurrency(value: number) {
-  return `AED ${value.toFixed(2)}`;
+  return `AED ${value.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;
+}
+
+function formatCurrencyCompact(value: number) {
+  if (value >= 1000) return `AED ${(value / 1000).toFixed(1)}k`;
+  return `AED ${Math.round(value)}`;
 }
 
 export default async function DispatchBoardPage({
@@ -31,171 +38,141 @@ export default async function DispatchBoardPage({
     searchParams,
   ]);
   const notice = params.notice ? NOTICE_COPY[params.notice] : undefined;
-  const nextParcel = parcels[0];
+
+  const queueCod = parcels.reduce((sum, p) => sum + p.codAmountAed, 0);
+  const availableRiders = riders.filter((r) => r.status !== "off_shift").length;
+  const openManifests = manifests.length;
+  const acceptedManifests = manifests.filter((m) => m.accepted).length;
 
   return (
-    <section className="grid">
-      <article className="panel stack">
-        <div>
-          <div className="eyebrow">Journey 2</div>
-          <h2>Assignment board</h2>
-          <p>
-            This MVP uses a fast, boring dispatch flow: choose a rider, select
-            the waiting parcels, create one manifest, and send the work into the
-            field.
-          </p>
-        </div>
+    <>
+      {notice ? (
+        <div className={`notice ${notice.tone}`}>{notice.text}</div>
+      ) : null}
 
-        {notice ? (
-          <div className={`notice ${notice.tone}`}>{notice.text}</div>
-        ) : null}
-
-        {parcels.length > 0 ? (
-          <div className="notice warn">
-            New delivery in queue: {nextParcel?.customerName} from{" "}
-            {nextParcel?.merchantName ?? "Merchant"} is waiting for admin
-            assignment here in the dispatch board.
-          </div>
-        ) : null}
-
-        {riders.length > 0 && parcels.length > 0 ? (
-          <form action={assignManifestAction} className="stack">
-            <label className="form-field">
-              <span className="label">Assign to rider</span>
-              <select className="select" name="riderId" required>
-                <option value="">Select rider</option>
-                {riders.map((rider) => (
-                  <option key={rider.id} value={rider.id}>
-                    {rider.name} · {rider.zone} ·{" "}
-                    {rider.status.replace("_", " ")}
-                  </option>
-                ))}
-              </select>
-            </label>
-
-            <div className="checkbox-list">
-              {parcels.map((parcel) => (
-                <label className="checkbox-item" key={parcel.id}>
-                  <div className="checkbox-head">
-                    <input name="parcelIds" type="checkbox" value={parcel.id} />
-                    <div className="stack-tight">
-                      <div className="split">
-                        <strong>{parcel.awb}</strong>
-                        <span className="chip warn">
-                          {formatCurrency(parcel.codAmountAed)}
-                        </span>
-                      </div>
-                      <div>{parcel.customerName}</div>
-                      <div className="muted">
-                        {parcel.merchantName ?? "Merchant"} · {parcel.area}
-                      </div>
-                      {parcel.pickupAddress ? (
-                        <div className="muted">
-                          Pickup: {parcel.pickupAddress}
-                        </div>
-                      ) : null}
-                      <div className="muted">Dropoff: {parcel.address}</div>
-                      {parcel.averageShippingChargeAed !== undefined ? (
-                        <div className="muted">
-                          Average shipping charge:{" "}
-                          {formatCurrency(parcel.averageShippingChargeAed)}
-                        </div>
-                      ) : null}
-                    </div>
-                  </div>
-                </label>
-              ))}
-            </div>
-
-            <button className="button" type="submit">
-              Create manifest
-            </button>
-          </form>
-        ) : (
-          <div className="empty-state">
-            <strong>Dispatch needs both riders and waiting parcels.</strong>
-            <span className="muted">
-              Add riders from intake, then create or receive parcel requests.
+      <section className="stats-grid">
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Unassigned queue</span>
+            <span className="kpi-icon amber">
+              <AlertCircle />
             </span>
           </div>
-        )}
-      </article>
-
-      <aside className="panel stack">
-        <div>
-          <div className="eyebrow">Rider roster</div>
-          <h2>Live manifest previews</h2>
-        </div>
-
-        <div className="list">
-          {riders.map((rider) => {
-            const manifest = manifests.find(
-              (item) => item.riderId === rider.id,
-            );
-            return (
-              <div className="list-item" key={rider.id}>
-                <div className="split">
-                  <strong>{rider.name}</strong>
-                  <span className="chip">{rider.status.replace("_", " ")}</span>
-                </div>
-                <div className="muted">
-                  {rider.zone} · {rider.parcelsInCustody} in custody
-                </div>
-                {manifest ? (
-                  <div className="card" style={{ padding: 16 }}>
-                    <div className="label">Latest manifest</div>
-                    <div className="value">
-                      {manifest.parcelIds.length} parcels ·{" "}
-                      {formatCurrency(manifest.expectedCodAed)}
-                    </div>
-                    <div className="muted">
-                      {manifest.pickupCount} pickups · {manifest.zoneSummary}
-                    </div>
-                  </div>
-                ) : (
-                  <div className="muted">No assigned manifest yet.</div>
-                )}
-              </div>
-            );
-          })}
-        </div>
-
-        <div className="stack">
-          <div>
-            <div className="eyebrow">Open manifests</div>
-            <h3 style={{ margin: 0 }}>Current board output</h3>
+          <div className="kpi-value">{parcels.length}</div>
+          <div className="kpi-foot">
+            <span>Waiting to be dispatched</span>
           </div>
-          {manifests.length > 0 ? (
-            <div className="list">
-              {manifests.map((manifest) => (
-                <div className="list-item" key={manifest.id}>
-                  <div className="split">
-                    <strong>{manifest.riderName ?? manifest.riderId}</strong>
-                    <span className="chip">
-                      {manifest.accepted ? "accepted" : "awaiting acceptance"}
-                    </span>
-                  </div>
-                  <div className="muted">
-                    {manifest.zoneSummary} · {manifest.pickupCount} pickups
-                  </div>
-                  <div className="muted">
-                    {manifest.parcelIds.length} parcels ·{" "}
-                    {formatCurrency(manifest.expectedCodAed)}
-                  </div>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="empty-state">
-              <strong>No manifests have been created yet.</strong>
-              <span className="muted">
-                Your first assignment will appear here with rider and COD
-                totals.
-              </span>
-            </div>
-          )}
+        </article>
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">COD in queue</span>
+            <span className="kpi-icon success">
+              <Wallet />
+            </span>
+          </div>
+          <div className="kpi-value">{formatCurrencyCompact(queueCod)}</div>
+          <div className="kpi-foot">
+            <span>Pending collection</span>
+          </div>
+        </article>
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Riders on shift</span>
+            <span className="kpi-icon">
+              <Package />
+            </span>
+          </div>
+          <div className="kpi-value">{availableRiders}</div>
+          <div className="kpi-foot">
+            <span>{riders.length - availableRiders} off shift</span>
+          </div>
+        </article>
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Open manifests</span>
+            <span className="kpi-icon cyan">
+              <Truck />
+            </span>
+          </div>
+          <div className="kpi-value">{openManifests}</div>
+          <div className="kpi-foot">
+            <span>{acceptedManifests} accepted</span>
+          </div>
+        </article>
+      </section>
+
+      {riders.length === 0 && parcels.length === 0 ? (
+        <div className="empty-state">
+          <strong>Dispatch needs riders and parcels to start.</strong>
+          <span className="muted">
+            Add riders from <Link href="/operator/riders">riders</Link>, then
+            create or wait for merchant requests to land in the queue.
+          </span>
         </div>
-      </aside>
-    </section>
+      ) : (
+        <DispatchBoard
+          manifests={manifests}
+          parcels={parcels}
+          riders={riders}
+        />
+      )}
+
+      {manifests.length > 0 ? (
+        <section className="panel stack">
+          <div className="split">
+            <div>
+              <div className="eyebrow">Open manifests</div>
+              <h2 style={{ margin: 0 }}>Current board output</h2>
+            </div>
+            <span className="chip">{manifests.length}</span>
+          </div>
+
+          <table className="table">
+            <thead>
+              <tr>
+                <th>Rider</th>
+                <th>Zones</th>
+                <th>Parcels</th>
+                <th>Pickups</th>
+                <th style={{ textAlign: "right" }}>Expected COD</th>
+                <th>Status</th>
+              </tr>
+            </thead>
+            <tbody>
+              {manifests.map((manifest) => (
+                <tr key={manifest.id}>
+                  <td>
+                    <strong>{manifest.riderName ?? manifest.riderId}</strong>
+                  </td>
+                  <td className="muted">{manifest.zoneSummary}</td>
+                  <td>{manifest.parcelIds.length}</td>
+                  <td>{manifest.pickupCount}</td>
+                  <td
+                    style={{
+                      textAlign: "right",
+                      fontVariantNumeric: "tabular-nums",
+                    }}
+                  >
+                    {formatCurrency(manifest.expectedCodAed)}
+                  </td>
+                  <td>
+                    <span
+                      className={`status-dot ${
+                        manifest.accepted ? "success" : "warn"
+                      }`}
+                    >
+                      {manifest.accepted ? "accepted" : "awaiting accept"}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ) : null}
+    </>
   );
 }

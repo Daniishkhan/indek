@@ -1,6 +1,6 @@
 ---
 title: "Indek — Technical Architecture Document"
-version: "0.1"
+version: "0.2"
 status: draft
 depends_on:
   - docs/product/00-onepager.md
@@ -15,7 +15,7 @@ scope: "High-level architecture, scaffolding, data flow, and deployment for v1. 
 
 This document is the technical companion to the PRD and UX documents. It decides the shape of the system at the architecture level — how the code is organized, how data flows, how the three user surfaces are stitched together, and how the whole thing gets deployed.
 
-It is deliberately *not* a schema document, an API specification, or an implementation plan. Tables, columns, endpoints, and class hierarchies are downstream of this. This document answers "what does the system look like from 10,000 feet" and "what are the load-bearing technical decisions that everything else hangs off of." Detailed data modeling lives in `02-ddd.md`; specific implementation choices live in code.
+It is deliberately _not_ a schema document, an API specification, or an implementation plan. Tables, columns, endpoints, and class hierarchies are downstream of this. This document answers "what does the system look like from 10,000 feet" and "what are the load-bearing technical decisions that everything else hangs off of." Detailed data modeling lives in `02-ddd.md`; specific implementation choices live in code.
 
 ## 2. Guiding technical principles
 
@@ -30,8 +30,9 @@ It is deliberately *not* a schema document, an API specification, or an implemen
 - **Language:** TypeScript end to end. Same language across operator console, rider PWA, merchant view, server, and shared domain logic.
 - **Framework:** Next.js (App Router) as the single application framework. Server-side rendering for the operator console and merchant view; client-side rendering with service worker for the rider PWA.
 - **Database:** Managed Postgres (Neon, Supabase, or Railway — choice deferred to deploy time, all three work).
-- **File storage:** S3-compatible object storage (Cloudflare R2 or AWS S3) for delivery photos and remittance PDFs.
-- **Authentication:** Simple email-password for operator, simple credentials for rider, signed unguessable tokens for merchant links. No third-party auth provider in v1.
+- **File storage:** S3-compatible object storage (Cloudflare R2 or AWS S3) for delivery photos, remittance PDFs, and billing invoice PDFs.
+- **Authentication:** Simple email-password for operator and approved merchants, simple credentials for riders, and signed unguessable tokens for merchant links. No third-party auth provider in v1.
+- **Email delivery:** Transactional email via a provider-backed outbox model, with Resend as the default v1 provider.
 - **Background work:** Postgres-backed job queue (a thin wrapper around a `jobs` table with a worker process, or Graphile Worker if a library is preferred). No Redis, no separate queue infrastructure in v1.
 - **Hosting:** Vercel for the application; managed Postgres provider for the database; R2/S3 for storage. Single-region (Middle East or Europe-West, whichever has the lowest latency to UAE).
 - **Package management and monorepo:** pnpm workspaces. Turborepo only if build performance becomes a problem.
@@ -65,21 +66,24 @@ The single application choice is deliberate. Three apps would be cleaner concept
 
 ## 5. Application structure inside the single Next.js app
 
-The app is divided into three route groups, each of which behaves like its own product but shares the underlying server, database, and domain layer.
+The app is divided into four route groups, each of which behaves like its own product but shares the underlying server, database, and domain layer.
 
 - **`/operator/*`** — the operator console. Authenticated, desktop-first, server-rendered. Rich UI, information-dense. Talks to the server via route handlers and server actions.
+- **`/operator/finance/*`** — the admin-only money hub inside the operator console. Reconciliation, COD drop, remittances, billing invoices, tax review, CSV exports, and finance email history live here. It is not a separate service.
 - **`/rider/*`** — the rider PWA. Has its own `manifest.json` and service worker so it can be installed to the home screen. Mobile-first, designed for one-handed use, offline-tolerant. Communicates with the server via route handlers, with all writes queued through a local sync layer.
-- **`/m/[token]/*`** — the merchant view. No login. The token in the URL is signed and scoped to a single merchant; presenting it grants read-only access to that merchant's parcels and remittance statements. Server-rendered, minimal JavaScript.
+- **`/merchant/*`** — the approved merchant workspace. Authenticated, lightweight, and approval-gated. Used for request entry, request follow-up visibility, plus finance document visibility.
+- **`/m/[token]/*`** — the merchant token view. The token in the URL is signed and scoped to a single merchant; presenting it grants low-friction access to that merchant's request/status/remittance surfaces without replacing the approval-gated workspace.
 
-All three route groups share the same backend code under `app/api/*` and the same domain package under `packages/domain`. The split is purely a frontend organizational choice.
+All four route groups share the same backend code under `app/api/*` and the same domain package under `packages/domain`. The split is purely a frontend organizational choice.
 
 ## 6. Data layer at a high level
 
-The system has three categories of data, each treated differently:
+The system has four categories of data, each treated differently:
 
-- **Aggregates and reference data.** Merchants, riders, parcels, manifests, shifts, remittance statements. Stored in normalized Postgres tables. Mutated through domain operations defined in `packages/domain` — never directly from route handlers. This is the "current state" view of the world.
-- **Events.** The event log. Append-only. Every state-changing operation in the system writes both an aggregate update *and* an event record in the same database transaction. Events carry actor (rider/operator), timestamp, geolocation when applicable, and references to proof artifacts. The event log is queryable for dispute lookup and is the backbone of the chain-of-custody promise.
-- **Files.** Delivery photos, signed-off remittance PDFs, anything binary. Stored in object storage, referenced by URL from the relevant event or aggregate record. Never stored in the database.
+- **Aggregates and reference data.** Merchants, merchant approval states, riders, rider access states, parcels, manifests, shifts, route-charge rules, remittance statements, billing invoices, reconciliation summaries, CSV export jobs, and finance outbox items. Stored in normalized Postgres tables. Mutated through domain operations defined in `packages/domain` — never directly from route handlers. This is the "current state" view of the world.
+- **Events.** The event log. Append-only. Every state-changing operation in the system writes both an aggregate update _and_ an event record in the same database transaction. Events carry actor (rider/operator), timestamp, geolocation when applicable, and references to proof artifacts. The event log is queryable for dispute lookup and is the backbone of the chain-of-custody promise.
+- **Files.** Delivery photos, signed-off remittance PDFs, billing invoice PDFs, anything binary. Stored in object storage, referenced by URL from the relevant event or aggregate record. Never stored in the database.
+- **Outbox state.** Durable email-send status for approval notices and finance documents, plus durable request follow-up state when operator messaging is delivered through the product. Stored in Postgres so the UI can show `queued`, `sent`, and `failed` states reliably.
 
 The DDD document specifies which aggregates exist and which invariants they enforce. This document only cares that the data lives in Postgres (relational), the event log lives next to it in the same database (for transactional integrity), and binary files live in object storage (for cost and serving efficiency).
 
@@ -88,8 +92,8 @@ The DDD document specifies which aggregates exist and which invariants they enfo
 Three different auth models for three different surfaces, all kept as simple as possible:
 
 - **Operator:** Email + password. Sessions managed via signed cookies. One account per operator user. No SSO, no MFA in v1 — the operator is a small trusted group inside one company.
-- **Rider:** A simple credential the operator sets when creating the rider profile. The rider signs in on their phone once and stays signed in via long-lived session. The PWA assumes a signed-in rider for all functionality.
-- **Merchant:** No authentication. Each merchant has one or more signed unguessable URL tokens issued by the operator. Possessing the token grants read-only access to that merchant's parcels and statements. Tokens can be revoked and reissued from the operator console.
+- **Rider:** A simple credential the operator sets when creating the rider profile. The rider signs in on their phone once and stays signed in via long-lived session. The PWA assumes a signed-in rider for all functionality. Rider access remains admin-managed only; there is no rider self-sign-up.
+- **Merchant:** Merchant registration is public inside the current tenant, but it creates a `pending_approval` account first. Only `approved` merchants can enter the signed-in merchant workspace. Merchant tokens remain supported for low-friction access and can be revoked and reissued from the operator console.
 
 A library like Lucia, Auth.js, or even a hand-rolled session table is all acceptable. No third-party identity provider in v1 — they add cost, complexity, and a vendor dependency that isn't earning its keep at this scale.
 
@@ -101,6 +105,8 @@ Every domain mutation in Indek happens through a single pattern: a domain operat
 
 Reads come from the aggregate tables for normal display. Reads come from the event log for dispute lookup, audit trail, and reconciliation backtracing. The aggregate tables are essentially a materialized view over the event log — they exist for query speed, not as the source of truth.
 
+The finance module follows the same rule: reconciliation, remittance, and billing all read from the same delivery and cash truth rather than separate manually edited finance tables.
+
 This pattern keeps the system simple (no separate event store, no eventual consistency, no event-replay infrastructure in v1) while preserving the chain-of-custody promise. It can evolve into something more sophisticated later (a true event sourcing setup, a separate read model, projections) if it ever needs to. For v1, it's a single Postgres database with a strict discipline about how writes happen.
 
 ## 9. Data flow: the life of an order
@@ -108,14 +114,24 @@ This pattern keeps the system simple (no separate event store, no eventual consi
 To make the architecture concrete, here is how a single order moves through the system.
 
 ```
-Merchant batch (WhatsApp)
+Merchant creates request in Indek
         │
         ▼
-Operator pastes into intake screen
+Request enters review queue
         │   Server action → domain.createParcels()
-        │   → INSERT parcels + parcel.created events (one txn)
+        │   → INSERT parcels + request.submitted events (one txn)
         ▼
-Parcels appear unassigned on dispatch board
+Operator reviews request
+        │
+        ├── Needs clarification
+        │     → domain.requestClarification()
+        │     → INSERT request.needs_clarification event
+        │
+        └── Ready for dispatch
+        │     → domain.approveRequestForDispatch()
+        │     → INSERT request.approved_for_dispatch event
+        ▼
+Parcels appear on dispatch board
         │
         ▼
 Operator builds a manifest, assigns it to a rider
@@ -138,17 +154,34 @@ Rider ends shift, drops cash and parcels with operator
         │   Operator opens reconciliation screen
         │   → domain.reconcileShift() validates parcel + cash counts
         │   → INSERT shift.closed event (with variance + reason if any)
+        │   → exportable COD drop summary and reconciliation rows derived from same truth
         ▼
-Cycle ends; operator generates merchant remittance
-        │   → domain.generateRemittance() reads delivered parcels for merchant in period
-        │   → Computes itemized statement, separates fees from pass-through cash
-        │   → INSERT remittance.draft event; PDF generated to object storage
+Cycle ends; operator opens finance module
+        │
+        ├── Remittance
+        │     → domain.generateRemittance() reads delivered parcels for merchant in period
+        │     → Computes route-aware fees, taxes, and pass-through cash
+        │     → INSERT remittance.draft event; PDF generated to object storage
+        │
+        ├── Billing
+              → domain.generateInvoice() reads billable merchant charges for the period
+              → Creates route-aware invoice lines, totals, and tax values
+              → INSERT invoice.draft event; PDF generated to object storage
+        │
+        └── Exports
+              → domain.generateFinanceExport() produces CSV rows for reconciliation,
+              → COD drop, remittance, billing, and tax review
+              → INSERT export.generated event
         ▼
-Operator marks remittance as settled with payment reference
-        │   → INSERT remittance.settled event
+Operator sends remittance or invoice by email
+        │   → INSERT email.queued event / update outbox row
+        │   → provider send attempt / update send status
         ▼
-Merchant taps link, sees status and statement
-        │   Server-rendered read from aggregate tables, scoped by merchant token
+Operator marks remittance as settled or invoice as paid with payment reference
+        │   → INSERT remittance.settled or invoice.paid event
+        ▼
+Merchant opens approved workspace or token link, sees status and finance documents
+        │   Server-rendered read from aggregate tables, scoped by approval state or merchant token
 ```
 
 Every arrow that crosses a system boundary is a transaction that updates aggregates and writes events together. There are no fire-and-forget mutations.
@@ -168,7 +201,7 @@ The operator console gets none of this. It assumes a working connection and show
 
 ## 11. Background work
 
-Some things have to happen on a schedule rather than in response to a user action: reattempt queue processing (a parcel that's been failed three times needs to enter the return-to-merchant flow), shift cleanup, remittance cycle generation, and link token expiry.
+Some things have to happen on a schedule rather than in response to a user action: reattempt queue processing (a parcel that's been failed three times needs to enter the return-to-merchant flow), shift cleanup, remittance cycle generation, billing invoice generation where scheduled, finance email retries, and link token expiry.
 
 For v1, all of this lives in a single background worker that runs alongside the web app. The worker reads from a `jobs` table in Postgres, executes due jobs, and writes the results back as events in the same event log as everything else. No Redis, no separate queue infrastructure, no Lambda functions. If the worker crashes, jobs stay in the table and get picked up on restart.
 
@@ -179,7 +212,7 @@ Single region, single environment for v1 (plus a staging environment that mirror
 - **Application:** Vercel deployment of the Next.js app. Auto-deploys from `main`.
 - **Database:** Managed Postgres in a region close to UAE (the closest options are typically Frankfurt or Bahrain, depending on provider). Connection pooling handled by the provider.
 - **Object storage:** Cloudflare R2 (preferred for lower egress costs) or AWS S3, in the same general region as the database.
-- **Background worker:** A small long-running process colocated with the database — Railway, Fly.io, or Render — pulling from the `jobs` table. Not on Vercel because Vercel is serverless.
+- **Background worker:** A small long-running process colocated with the database — Railway, Fly.io, or Render — pulling from the `jobs` table. Not on Vercel because Vercel is serverless. This worker handles finance email retries and scheduled document jobs in addition to operational jobs.
 - **Domain and DNS:** Cloudflare in front of everything. The merchant view and the rider PWA may eventually want their own subdomains for cleaner installation experience; v1 ships under a single domain with route prefixes.
 - **Backups:** Daily Postgres snapshots via the managed provider's built-in tooling. Object storage has its own redundancy.
 - **Secrets:** Managed via Vercel environment variables and (for the worker) the worker host's secret store.
@@ -189,11 +222,13 @@ The whole thing should cost well under $100/month at v1 scale.
 ## 13. Observability
 
 Minimal but present:
+
 - **Application logs:** Structured logs from the Next.js app and the worker, shipped to a single destination (Vercel logs are fine for v1; Logflare or Axiom if more searchability is needed).
 - **Error tracking:** Sentry on both the operator console and the rider PWA.
 - **Database monitoring:** Whatever the managed Postgres provider gives you. No custom instrumentation in v1.
 - **Uptime checks:** A simple external uptime monitor pinging the operator console and the rider PWA every minute.
 - **The event log itself is observability** for the business logic. Every state transition is queryable, timestamped, and attributed.
+- **Finance email observability:** The outbox table is the first-line operational view for finance document delivery state.
 
 No analytics, no heatmaps, no user-behavior tracking in v1.
 
@@ -202,6 +237,7 @@ No analytics, no heatmaps, no user-behavior tracking in v1.
 - All traffic over HTTPS, enforced.
 - Operator and rider sessions stored in HttpOnly, Secure, SameSite cookies.
 - Merchant tokens are long, random, and signed; revocable from the operator console.
+- Signed-in merchant workspace access is approval-gated even if token links still exist.
 - Photos in object storage are accessed via short-lived signed URLs, not made public.
 - The database is not exposed to the public internet — access is via the managed provider's pooler, with allow-listed IPs where supported.
 - No PII stored beyond what the business actually needs (customer name, phone, address — nothing more).
@@ -223,6 +259,7 @@ These are technical decisions and capabilities that some systems have on day one
 - Feature flags infrastructure
 - A/B testing framework
 - Customer-facing analytics
+- Payroll module or rider pay calculation
 - Anything Kubernetes
 - Anything that requires a DevOps engineer to operate
 
@@ -234,4 +271,6 @@ If any of these become necessary, they're earned by real load and real pain — 
 - The product contract lives in `docs/product/01-prd.md`.
 - The domain model — bounded contexts, aggregates, state machines, invariants, schema-relevant decisions — lives in `docs/product/02-ddd.md`.
 - The user-visible features and journeys live in `docs/product/03-ux.md`.
+- Priority-ordered slices live in `docs/journeys.md`.
+- Current implementation status lives in `docs/progress.md`.
 - Implementation-level decisions — specific libraries, table schemas, API contracts, deployment scripts — live in code, not in this document.

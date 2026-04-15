@@ -76,9 +76,11 @@ function revalidateOperatorSurfaces(extraPaths: string[] = []) {
     "/",
     "/merchant",
     "/operator",
-    "/operator/intake",
+    "/operator/requests",
     "/operator/dispatch",
     "/operator/live",
+    "/operator/merchants",
+    "/operator/riders",
     ...extraPaths,
   ]) {
     revalidatePath(path);
@@ -142,11 +144,11 @@ async function requireRider(nextPath: string) {
 }
 
 export async function createMerchantAction(formData: FormData) {
-  await requireOperator("/operator/intake");
+  await requireOperator("/operator/merchants");
 
   const name = getText(formData, "name");
   if (!name) {
-    redirect(withNotice("/operator/intake", "merchant-missing-name"));
+    redirect(withNotice("/operator/merchants", "merchant-missing-name"));
   }
 
   const remittanceCycleValue = getText(formData, "remittanceCycle");
@@ -175,16 +177,16 @@ export async function createMerchantAction(formData: FormData) {
   });
 
   revalidateOperatorSurfaces();
-  redirect(withNotice("/operator/intake", "merchant-created"));
+  redirect(withNotice("/operator/merchants", "merchant-created"));
 }
 
 export async function createRiderAction(formData: FormData) {
-  await requireOperator("/operator/intake");
+  await requireOperator("/operator/riders");
 
   const name = getText(formData, "name");
   const zone = getText(formData, "zone");
   if (!name || !zone) {
-    redirect(withNotice("/operator/intake", "rider-missing-fields"));
+    redirect(withNotice("/operator/riders", "rider-missing-fields"));
   }
 
   const statusValue = getText(formData, "status");
@@ -202,16 +204,16 @@ export async function createRiderAction(formData: FormData) {
   });
 
   revalidateOperatorSurfaces();
-  redirect(withNotice("/operator/intake", "rider-created"));
+  redirect(withNotice("/operator/riders", "rider-created"));
 }
 
 export async function createOperatorParcelAction(formData: FormData) {
-  const actor = await requireOperator("/operator/intake");
+  const actor = await requireOperator("/operator/requests");
 
   const merchantId = getText(formData, "merchantId");
   const merchant = merchantId ? await getMerchantById(merchantId) : undefined;
   if (!merchant) {
-    redirect(withNotice("/operator/intake", "order-missing-merchant"));
+    redirect(withNotice("/operator/requests", "order-missing-merchant"));
   }
 
   await createParcel({
@@ -236,7 +238,7 @@ export async function createOperatorParcelAction(formData: FormData) {
   });
 
   revalidateOperatorSurfaces([`/m/${merchant.token}`]);
-  redirect(withNotice("/operator/intake", "order-created"));
+  redirect(withNotice("/operator/requests", "order-created"));
 }
 
 export async function createMerchantParcelAction(formData: FormData) {

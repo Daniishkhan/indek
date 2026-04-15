@@ -1,9 +1,24 @@
 import Link from "next/link";
+import {
+  CheckCircle2,
+  Clock,
+  ExternalLink,
+  Package,
+  Wallet,
+} from "lucide-react";
 import { getMerchantPortalDataForUser } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
+import { BarCategoryChart, DonutChart, chartColors } from "@/components/charts";
 
 function formatCurrency(value: number) {
-  return `AED ${value.toFixed(2)}`;
+  return `AED ${value.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;
+}
+
+function formatCurrencyCompact(value: number) {
+  if (value >= 1000) {
+    return `AED ${(value / 1000).toFixed(1)}k`;
+  }
+  return `AED ${Math.round(value)}`;
 }
 
 export default async function MerchantHomePage() {
@@ -29,150 +44,274 @@ export default async function MerchantHomePage() {
 
   const { merchant, parcels, remittance, summary } = portal;
 
+  const stateBreakdown = [
+    {
+      label: "Awaiting",
+      value: summary.awaitingAssignmentCount,
+      color: chartColors[3],
+    },
+    {
+      label: "Active",
+      value: summary.activeCount,
+      color: chartColors[1],
+    },
+    {
+      label: "Delivered",
+      value: summary.deliveredCount,
+      color: chartColors[2],
+    },
+    {
+      label: "Failed",
+      value: summary.failedCount,
+      color: chartColors[4],
+    },
+  ].filter((entry) => entry.value > 0);
+
+  const totalCod = parcels.reduce((sum, p) => sum + p.codAmountAed, 0);
+  const deliveredCod = parcels
+    .filter((p) => p.state === "delivered")
+    .reduce((sum, p) => sum + p.codAmountAed, 0);
+
+  const remittanceChart =
+    remittance && remittance.lines.length > 0
+      ? remittance.lines.slice(0, 8).map((line) => ({
+          label: line.awb.slice(-6),
+          cod: line.codAed,
+          fees: line.deliveryFeeAed + line.handlingFeeAed,
+        }))
+      : [];
+
   return (
     <>
       <section className="stats-grid">
-        <article className="metric">
-          <div className="label">Awaiting assignment</div>
-          <div className="metric-value">{summary.awaitingAssignmentCount}</div>
-          <div className="muted">Requests waiting for dispatch</div>
-        </article>
-        <article className="metric">
-          <div className="label">Active parcels</div>
-          <div className="metric-value">{summary.activeCount}</div>
-          <div className="muted">
-            Already out with riders or in exception handling
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Awaiting assignment</span>
+            <span className="kpi-icon amber">
+              <Clock />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.awaitingAssignmentCount}</div>
+          <div className="kpi-foot">
+            <span>Requests waiting for dispatch</span>
           </div>
         </article>
-        <article className="metric">
-          <div className="label">Delivered</div>
-          <div className="metric-value">{summary.deliveredCount}</div>
-          <div className="muted">
-            Completed parcels in the current visible cycle
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Active parcels</span>
+            <span className="kpi-icon">
+              <Package />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.activeCount}</div>
+          <div className="kpi-foot">
+            <span>Out with riders or in exception</span>
           </div>
         </article>
-        <article className="metric">
-          <div className="label">Open remittance</div>
-          <div className="metric-value">
-            {remittance ? formatCurrency(remittance.netPayableAed) : "AED 0.00"}
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Delivered</span>
+            <span className="kpi-icon success">
+              <CheckCircle2 />
+            </span>
           </div>
-          <div className="muted">
-            Net payable after fees and VAT on delivered work
+          <div className="kpi-value">{summary.deliveredCount}</div>
+          <div className="kpi-foot">
+            <span>{formatCurrencyCompact(deliveredCod)} COD collected</span>
+          </div>
+        </article>
+
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Open remittance</span>
+            <span className="kpi-icon cyan">
+              <Wallet />
+            </span>
+          </div>
+          <div className="kpi-value">
+            {remittance
+              ? formatCurrencyCompact(remittance.netPayableAed)
+              : "AED 0"}
+          </div>
+          <div className="kpi-foot">
+            <span>Net payable after fees</span>
           </div>
         </article>
       </section>
 
       <section className="grid">
-        <article className="panel stack">
-          <div>
-            <div className="eyebrow">Merchant account</div>
-            <h2>{merchant.name}</h2>
-            <p>
-              This signed-in merchant route mirrors the merchant-facing view and
-              keeps the role separate from operator and rider access.
-            </p>
+        <div className="chart-panel">
+          <div className="chart-head">
+            <div>
+              <div className="eyebrow">Status funnel</div>
+              <h3>Parcel pipeline</h3>
+            </div>
+            <span className="chip">{parcels.length} total</span>
           </div>
+          {stateBreakdown.length > 0 ? (
+            <DonutChart data={stateBreakdown} />
+          ) : (
+            <div className="empty-state">
+              <span className="muted">No parcels yet.</span>
+            </div>
+          )}
+        </div>
 
-          <div className="cards-grid">
-            <div className="card">
-              <div className="label">Proof requirement</div>
-              <div className="value">{merchant.proofRequirement}</div>
-            </div>
-            <div className="card">
-              <div className="label">Remittance cycle</div>
-              <div className="value">{merchant.remittanceCycle}</div>
-            </div>
-            <div className="card">
-              <div className="label">Public merchant link</div>
-              <div className="value">
-                <Link href={`/m/${merchant.token}`}>Open token portal</Link>
+        <div className="chart-panel">
+          <div className="chart-head">
+            <div>
+              <div className="eyebrow">
+                Cycle: {remittance?.cycleLabel ?? "—"}
               </div>
+              <h3>COD vs. fees per parcel</h3>
             </div>
+            <span className="chip primary">
+              {remittance ? formatCurrency(remittance.netPayableAed) : "AED 0"}
+            </span>
           </div>
-
-          <div className="panel" style={{ padding: 20 }}>
-            <div className="split">
-              <div>
-                <div className="eyebrow" style={{ marginBottom: 8 }}>
-                  Current parcels
-                </div>
-                <h3 style={{ margin: 0 }}>Status visibility</h3>
-              </div>
-              <span className="chip">{parcels.length} parcels</span>
-            </div>
-
-            {parcels.length > 0 ? (
-              <table className="table" style={{ marginTop: 16 }}>
-                <thead>
-                  <tr>
-                    <th>AWB</th>
-                    <th>Customer</th>
-                    <th>Pickup</th>
-                    <th>State</th>
-                    <th>Avg charge</th>
-                    <th>Updated</th>
-                    <th>COD</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {parcels.map((parcel) => (
-                    <tr key={parcel.id}>
-                      <td>{parcel.awb}</td>
-                      <td>{parcel.customerName}</td>
-                      <td>{parcel.pickupAddress ?? "Merchant pickup"}</td>
-                      <td>{parcel.state.replace("_", " ")}</td>
-                      <td>
-                        {parcel.averageShippingChargeAed !== undefined
-                          ? formatCurrency(parcel.averageShippingChargeAed)
-                          : "Pending"}
-                      </td>
-                      <td>{new Date(parcel.lastUpdateAt).toLocaleString()}</td>
-                      <td>{formatCurrency(parcel.codAmountAed)}</td>
-                    </tr>
-                  ))}
-                </tbody>
-              </table>
-            ) : (
-              <div className="empty-state" style={{ marginTop: 16 }}>
-                <strong>No parcel activity yet.</strong>
-                <span className="muted">
-                  Use the public merchant portal link to create the first
-                  request.
-                </span>
-              </div>
-            )}
-          </div>
-        </article>
-
-        <aside className="panel stack">
-          <div>
-            <div className="eyebrow">Remittance</div>
-            <h2>Fee visibility</h2>
-          </div>
-
-          {remittance ? (
-            <div className="list">
-              <div className="list-item">
-                <div className="label">Cycle</div>
-                <div className="value">{remittance.cycleLabel}</div>
-              </div>
-              <div className="list-item">
-                <div className="label">Net payable</div>
-                <div className="metric-value">
-                  {formatCurrency(remittance.netPayableAed)}
-                </div>
-              </div>
-              <div className="list-item">
-                <div className="label">VAT</div>
-                <div className="value">{formatCurrency(remittance.vatAed)}</div>
-              </div>
-            </div>
+          {remittanceChart.length > 0 ? (
+            <BarCategoryChart
+              data={remittanceChart}
+              dataKey="cod"
+              color={chartColors[2]}
+              valueFormat="currency-compact"
+              height={240}
+            />
           ) : (
             <div className="empty-state">
               <strong>No delivered parcels yet.</strong>
               <span className="muted">
-                Delivered work will roll into the merchant remittance summary
-                here.
+                Delivered work will roll into the remittance summary here.
+              </span>
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="grid">
+        <div className="panel stack">
+          <div className="split">
+            <div>
+              <div className="eyebrow">Current parcels</div>
+              <h2 style={{ margin: 0 }}>{merchant.name} · status visibility</h2>
+            </div>
+            <Link className="button secondary" href={`/m/${merchant.token}`}>
+              <ExternalLink style={{ width: 14, height: 14, marginRight: 6 }} />
+              Open request portal
+            </Link>
+          </div>
+
+          {parcels.length > 0 ? (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>AWB</th>
+                  <th>Customer</th>
+                  <th>State</th>
+                  <th>Updated</th>
+                  <th style={{ textAlign: "right" }}>COD</th>
+                </tr>
+              </thead>
+              <tbody>
+                {parcels.slice(0, 10).map((parcel) => (
+                  <tr key={parcel.id}>
+                    <td
+                      style={{
+                        fontFamily: "var(--font-mono)",
+                        fontSize: "0.82rem",
+                      }}
+                    >
+                      {parcel.awb}
+                    </td>
+                    <td>{parcel.customerName}</td>
+                    <td>
+                      <span
+                        className={`status-dot ${
+                          parcel.state === "delivered"
+                            ? "success"
+                            : parcel.state === "failed"
+                              ? "danger"
+                              : parcel.state === "in_transit"
+                                ? "primary"
+                                : "warn"
+                        }`}
+                      >
+                        {parcel.state.replace("_", " ")}
+                      </span>
+                    </td>
+                    <td className="muted" style={{ fontSize: "0.82rem" }}>
+                      {new Date(parcel.lastUpdateAt).toLocaleDateString()}
+                    </td>
+                    <td
+                      style={{
+                        textAlign: "right",
+                        fontVariantNumeric: "tabular-nums",
+                      }}
+                    >
+                      {formatCurrency(parcel.codAmountAed)}
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          ) : (
+            <div className="empty-state">
+              <strong>No parcel activity yet.</strong>
+              <span className="muted">
+                Use the request portal to create the first order.
+              </span>
+            </div>
+          )}
+        </div>
+
+        <aside className="panel stack">
+          <div>
+            <div className="eyebrow">Remittance</div>
+            <h2 style={{ margin: 0 }}>Fee visibility</h2>
+          </div>
+
+          {remittance ? (
+            <>
+              <div className="estimate-card">
+                <div className="label">
+                  Net payable · {remittance.cycleLabel}
+                </div>
+                <div className="metric-value">
+                  {formatCurrency(remittance.netPayableAed)}
+                </div>
+                <div className="muted" style={{ fontSize: "0.85rem" }}>
+                  VAT {formatCurrency(remittance.vatAed)} · Held{" "}
+                  {formatCurrency(remittance.heldAmountAed)}
+                </div>
+              </div>
+              <div className="list">
+                <div className="list-item">
+                  <div className="split">
+                    <span className="label">Proof requirement</span>
+                    <span className="value">{merchant.proofRequirement}</span>
+                  </div>
+                </div>
+                <div className="list-item">
+                  <div className="split">
+                    <span className="label">Cycle</span>
+                    <span className="value">{merchant.remittanceCycle}</span>
+                  </div>
+                </div>
+                <div className="list-item">
+                  <div className="split">
+                    <span className="label">Gross COD</span>
+                    <span className="value">{formatCurrency(totalCod)}</span>
+                  </div>
+                </div>
+              </div>
+            </>
+          ) : (
+            <div className="empty-state">
+              <strong>No delivered parcels yet.</strong>
+              <span className="muted">
+                Delivered work will roll into the remittance summary here.
               </span>
             </div>
           )}

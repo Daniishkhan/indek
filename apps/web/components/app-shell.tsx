@@ -2,34 +2,54 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
+import type { ReactNode } from "react";
+import {
+  Activity,
+  Building2,
+  CheckCircle2,
+  Inbox,
+  LayoutDashboard,
+  LogOut,
+  MapPin,
+  Package,
+  Send,
+  Truck,
+  Users,
+  Wallet,
+} from "lucide-react";
 import { roleConfig, type AppRole } from "@/lib/role-config";
 
-type ShellNavItem = {
+const ICON_MAP = {
+  activity: Activity,
+  building: Building2,
+  check: CheckCircle2,
+  inbox: Inbox,
+  dashboard: LayoutDashboard,
+  logout: LogOut,
+  map: MapPin,
+  package: Package,
+  send: Send,
+  truck: Truck,
+  users: Users,
+  wallet: Wallet,
+} as const;
+
+export type ShellIcon = keyof typeof ICON_MAP;
+
+export type ShellNavItem = {
   href: string;
   label: string;
   caption?: string;
   matchPrefix?: string;
+  icon?: ShellIcon;
+  section?: string;
 };
 
 type ShellAction = {
   href: string;
   label: string;
-  tone?: "primary" | "secondary";
-};
-
-const FOOTER_COPY: Record<AppRole, { title: string; text: string }> = {
-  operator: {
-    title: "Control loop",
-    text: "Use this surface to keep intake, dispatch, and live visibility on one system of record.",
-  },
-  merchant: {
-    title: "Merchant view",
-    text: "Track request flow, delivery outcomes, and remittance visibility from the same merchant workspace.",
-  },
-  rider: {
-    title: "Field execution",
-    text: "Accept assigned work, resolve delivery outcomes, and keep the operator view current in real time.",
-  },
+  tone?: "primary" | "secondary" | "ghost";
+  icon?: ShellIcon;
 };
 
 function isActivePath(
@@ -51,101 +71,122 @@ function isActivePath(
   return false;
 }
 
+function initials(name?: string) {
+  if (!name) return "U";
+  const parts = name.trim().split(/\s+/);
+  if (parts.length === 1) {
+    return parts[0]!.slice(0, 2).toUpperCase();
+  }
+  return (parts[0]![0]! + parts[parts.length - 1]![0]!).toUpperCase();
+}
+
 export function AppShell({
   role,
   title,
-  description,
   userLabel,
   navItems,
   actions = [],
   children,
+  topbarSlot,
 }: {
   role: AppRole;
   title: string;
-  description: string;
   userLabel?: string;
   navItems: ShellNavItem[];
   actions?: ShellAction[];
-  children: React.ReactNode;
+  children: ReactNode;
+  topbarSlot?: ReactNode;
 }) {
   const pathname = usePathname();
   const activeItem =
-    navItems.find((item) => isActivePath(pathname, item)) ?? navItems[0];
-  const footer = FOOTER_COPY[role];
+    navItems
+      .filter((item) => isActivePath(pathname, item))
+      .sort((a, b) => b.href.length - a.href.length)[0] ?? navItems[0];
+
+  const sections = groupNavBySection(navItems);
 
   return (
     <main className="app-shell">
       <aside className="app-sidebar">
-        <div className="app-sidebar-top">
+        <div>
           <Link className="app-brand" href={roleConfig[role].homePath}>
             <span className="app-brand-mark">I</span>
             <span>
               <strong>Indek</strong>
-              <span className="muted">COD-native ops</span>
+              <span className="muted">COD ops platform</span>
             </span>
           </Link>
 
-          <div className="app-role-card">
-            <div className="split" style={{ alignItems: "center" }}>
-              <div className="eyebrow" style={{ marginBottom: 0 }}>
-                Shared shell
+          <nav
+            className="app-nav"
+            aria-label={`${roleConfig[role].label} navigation`}
+          >
+            {sections.map(({ label, items }) => (
+              <div className="app-nav-section" key={label ?? "default"}>
+                {label ? (
+                  <div className="app-nav-section-label">{label}</div>
+                ) : null}
+                {items.map((item) => {
+                  const active = isActivePath(pathname, item);
+                  const Icon = item.icon ? ICON_MAP[item.icon] : null;
+                  return (
+                    <Link
+                      aria-current={active ? "page" : undefined}
+                      className={`app-nav-link ${active ? "active" : ""}`}
+                      href={item.href}
+                      key={item.href}
+                    >
+                      {Icon ? <Icon /> : <span />}
+                      <span>{item.label}</span>
+                    </Link>
+                  );
+                })}
               </div>
-              <span className="chip">{roleConfig[role].shortLabel}</span>
-            </div>
-            <h2>{title}</h2>
-            <p>{description}</p>
-          </div>
+            ))}
+          </nav>
         </div>
 
-        <nav
-          className="app-nav"
-          aria-label={`${roleConfig[role].label} navigation`}
-        >
-          {navItems.map((item) => {
-            const active = isActivePath(pathname, item);
-            return (
-              <Link
-                aria-current={active ? "page" : undefined}
-                className={`app-nav-link ${active ? "active" : ""}`}
-                href={item.href}
-                key={item.href}
-              >
-                <span className="app-nav-label">{item.label}</span>
-                {item.caption ? (
-                  <span className="app-nav-caption">{item.caption}</span>
-                ) : null}
-              </Link>
-            );
-          })}
-        </nav>
+        <div />
 
         <div className="app-sidebar-foot">
-          <div className="label">{footer.title}</div>
-          <p>{footer.text}</p>
+          <div className="user-row">
+            <span className="app-user-chip-dot user-avatar">
+              {initials(userLabel)}
+            </span>
+            <div>
+              <div className="user-name">{userLabel ?? "Signed in"}</div>
+              <div className="user-role">{roleConfig[role].shortLabel}</div>
+            </div>
+          </div>
         </div>
       </aside>
 
       <div className="app-frame">
-        <header className="app-header">
-          <div className="app-header-copy">
-            <div className="eyebrow">{`${roleConfig[role].shortLabel} / ${activeItem?.label ?? title}`}</div>
-            <div className="app-header-title">{title}</div>
-            <p>{description}</p>
+        <header className="app-topbar">
+          <div className="app-topbar-title">
+            <h1>{activeItem?.label ?? title}</h1>
+            {activeItem?.caption ? (
+              <p className="app-topbar-caption">{activeItem.caption}</p>
+            ) : null}
           </div>
 
-          <div className="app-toolbar">
-            {userLabel ? (
-              <div className="app-user-chip">{userLabel}</div>
-            ) : null}
-            {actions.map((action) => (
-              <Link
-                className={`button ${action.tone === "secondary" ? "secondary" : ""}`}
-                href={action.href}
-                key={`${action.href}:${action.label}`}
-              >
-                {action.label}
-              </Link>
-            ))}
+          <div className="app-topbar-actions">
+            {topbarSlot}
+            {actions.map((action) => {
+              const Icon = action.icon ? ICON_MAP[action.icon] : null;
+              return (
+                <Link
+                  className={`button ${action.tone ?? "secondary"}`}
+                  href={action.href}
+                  key={`${action.href}:${action.label}`}
+                >
+                  {Icon ? (
+                    <Icon style={{ width: 16, height: 16, marginRight: 6 }} />
+                  ) : null}
+                  {action.label}
+                </Link>
+              );
+            })}
           </div>
         </header>
 
@@ -153,4 +194,17 @@ export function AppShell({
       </div>
     </main>
   );
+}
+
+function groupNavBySection(items: ShellNavItem[]) {
+  const groups = new Map<string | undefined, ShellNavItem[]>();
+  for (const item of items) {
+    const key = item.section;
+    if (!groups.has(key)) groups.set(key, []);
+    groups.get(key)!.push(item);
+  }
+  return Array.from(groups.entries()).map(([label, items]) => ({
+    label,
+    items,
+  }));
 }

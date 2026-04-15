@@ -415,8 +415,8 @@ export default async function HomePage() {
             <span className="surface-tag">/operator</span>
             <h3 className="surface-name">Operator console</h3>
             <p className="surface-desc">
-              Intake, dispatch board, live ops, and the reconciliation flow that
-              closes a shift only when custody and cash both hit zero.
+              Requests, dispatch board, live ops, and the reconciliation flow
+              that closes a shift only when custody and cash both hit zero.
             </p>
             <div className="surface-foot">
               <span>Enter</span>

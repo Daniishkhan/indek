@@ -1,13 +1,16 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, type ShellNavItem } from "@/components/app-shell";
 
-const links = [
+const links: ShellNavItem[] = [
   {
     href: "/rider",
     label: "Manifest",
-    caption: "Accept assigned work and resolve delivery outcomes",
+    caption:
+      "Accept your manifest, complete deliveries, and push status back to operations.",
+    icon: "package",
+    section: "Shift",
   },
 ];
 
@@ -26,13 +29,11 @@ export default async function RiderLayout({
   return (
     <AppShell
       actions={[
-        { href: "/", label: "Site home", tone: "secondary" },
-        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "ghost", icon: "logout" },
       ]}
-      description="Keep the field workflow simple: accept the manifest, complete deliveries, and push live status back to operations."
       navItems={links}
       role="rider"
-      title="Rider shift workspace"
+      title="Rider shift"
       userLabel={name}
     >
       {children}

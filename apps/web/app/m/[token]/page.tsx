@@ -61,7 +61,6 @@ export default async function MerchantPage({
   return (
     <AppShell
       actions={actions}
-      description="Place delivery requests and watch the same live status updates the operator and rider surfaces are using."
       navItems={[
         {
           href: `/m/${merchant.token}`,

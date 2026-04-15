@@ -1,28 +1,55 @@
 import { redirect } from "next/navigation";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, type ShellNavItem } from "@/components/app-shell";
 
-const links = [
+const links: ShellNavItem[] = [
   {
     href: "/operator",
     label: "Overview",
-    caption: "Snapshot, recent requests, and queue pressure",
+    caption:
+      "Today's delivery volume, COD exposure, and merchant activity at a glance.",
+    icon: "dashboard",
+    section: "Operations",
   },
   {
-    href: "/operator/intake",
-    label: "Intake",
-    caption: "Create merchants, riders, and manual orders",
+    href: "/operator/requests",
+    label: "Requests",
+    caption:
+      "Capture new parcel requests from merchants when they come in by WhatsApp or phone.",
+    icon: "inbox",
+    section: "Operations",
   },
   {
     href: "/operator/dispatch",
     label: "Dispatch",
-    caption: "Assign unassigned requests into rider manifests",
+    caption:
+      "Batch unassigned parcels by zone and assign them to a rider as a manifest.",
+    icon: "truck",
+    section: "Operations",
   },
   {
     href: "/operator/live",
     label: "Live ops",
-    caption: "Watch rider load and cash exposure",
+    caption:
+      "Monitor rider state, parcel custody, and cash exposure in real time.",
+    icon: "activity",
+    section: "Operations",
+  },
+  {
+    href: "/operator/merchants",
+    label: "Merchants",
+    caption:
+      "Manage the merchant roster, fees and proof rules, and their request portal links.",
+    icon: "building",
+    section: "Roster",
+  },
+  {
+    href: "/operator/riders",
+    label: "Riders",
+    caption: "Manage the rider roster, shift status, and cash reconciliation.",
+    icon: "users",
+    section: "Roster",
   },
 ];
 
@@ -41,10 +68,8 @@ export default async function OperatorLayout({
   return (
     <AppShell
       actions={[
-        { href: "/", label: "Site home", tone: "secondary" },
-        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "ghost", icon: "logout" },
       ]}
-      description="Run the merchant request loop, dispatch riders, and monitor live COD operations from one control surface."
       navItems={links}
       role="operator"
       title="Operator control plane"

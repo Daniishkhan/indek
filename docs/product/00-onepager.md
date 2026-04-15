@@ -38,14 +38,14 @@ Indek replaces the WhatsApp-and-Excel operation with three tightly coupled capab
 
 1. **Chain of custody for every parcel and every custody transfer.** Every state transition — pickup, in-transit, attempted, delivered-to-recipient, delivered-to-concierge, failed, in-return, returned-to-merchant — is an immutable event with rider identity, timestamp, geolocation, photo, and (where applicable) a customer OTP. Critically, **rider-to-rider handoffs** and **partial deliveries** are first-class events too: nothing transfers between people without a logged, both-party-acknowledged custody event, and a parcel where the customer kept two of three items splits cleanly into a delivered portion and a returned portion. Disputes become queries against an append-only event log.
 2. **Closed-loop cash reconciliation with per-merchant sub-ledgers.** Every rider has a live cash ledger that tracks (a) COD collected per parcel, per merchant, (b) the rider's personal float for making change, (c) inter-rider cash transfers, and (d) drops to the operator. Every COD line carries both an `expected amount` and an `actually collected amount` with a `variance reason` — because partial acceptance, exact-change shortfalls, and at-door price negotiations are routine, not exceptions. End-of-shift cannot close until parcels in custody equal zero and cash variance equals zero (or ops explicitly writes off a variance with a reason code). **Merchant remittance is computed from the same ledger, with delivery fees and COD handling fees correctly separated from pass-through cash for VAT purposes.**
-3. **A single operations control plane that selectively replaces WhatsApp.** One admin system for intake, dispatch, reconciliation, RTO management, and reporting. One merchant view for parcel status and COD balance. One rider mobile experience for scanning, delivering, capturing proof, and closing the day. WhatsApp stays — but only as a notification channel for merchants and customers, not as the system of record. The critical path (assignment, status, cash, proof) lives in Indek.
+3. **A single operations control plane for request review, dispatch, and finance.** One admin system for merchant request review, dispatch, reconciliation, COD drop, remittance, billing, tax math, and reporting. One merchant view for request entry, follow-up, parcel status, and COD balance. One rider mobile experience for scanning, delivering, capturing proof, and closing the day. The critical path (request, review, assignment, status, cash, proof) lives in Indek.
 4. **Indek never holds the operator's money — and never holds the merchants' money.** This is not a feature; it is a constitutive constraint. Indek is a logistics and reconciliation platform, not a payment processor or stored-value facility. Cash flows physically from rider to operator to operator's bank account to merchant; Indek records every step but never sits in the middle of the funds flow. This posture keeps Indek outside the scope of CBUAE retail-payment-services and stored-value-facility licensing, and it must be defended in every product decision.
 
 ## Core user/value loop
 
-1. A merchant hands the operator a batch of parcels (or sends an order list via WhatsApp, Google Sheet, or Shopify export). Ops intakes them, prints QR labels, and assigns them as a **shift manifest** to an available rider from the dispatch board.
+1. A merchant creates a delivery request inside Indek. Ops reviews it, checks that the address and COD details are workable, sends follow-up if needed, and then assigns it as a **shift manifest** to an available rider from the dispatch board.
 2. The rider accepts the manifest on their phone, scans parcels at the merchant pickup, delivers each one with a photo and — for COD — a customer OTP, and watches their cash ledger update in real time with per-merchant sub-totals. When a customer keeps only part of an order, the rider records the split at the door; when a customer isn't home, the rider records a failed attempt with reason code and the parcel enters the reattempt queue.
-3. At end of shift, the rider hands cash to ops with a single drop event and surrenders any undelivered parcels with a custody transfer event. The system reconciles parcels, cash, and hours, and closes the shift only when everything matches. Ops goes home on time. Merchants see their per-order status and accumulating COD balance throughout the day via a status link, and receive an itemized remittance statement on the agreed cycle.
+3. At end of shift, the rider hands cash to ops with a single drop event and surrenders any undelivered parcels with a custody transfer event. The system reconciles parcels, cash, route-aware charges, and taxes, and closes the shift only when everything matches. Ops goes home on time. Merchants see their per-order status and accumulating COD balance throughout the day inside Indek, and receive itemized remittance statements and invoices on the agreed cycle.
 
 ## Optional text-native sketch
 
@@ -86,33 +86,33 @@ flowchart LR
 ## Non-goals
 
 - Route optimization, live GPS tracking, or ETA prediction in v1
-- A customer-facing tracking portal in v1 (a hosted status page link delivered over WhatsApp is enough)
+- A customer-facing tracking portal in v1
 - Holding, pooling, or processing funds in any digital form — ever, at any version
 - AI-powered features (address resolution, merchant intake parsing, voice logging, photo verification) deferred to v2
 - Multi-language UI in v1 — English only at launch (the South Asian rider workforce and the social-commerce merchant base both work in English; Arabic arrives when a second operator with Emirati merchants comes on)
-- Dynamic pricing or per-kilometer charges in v1 (flat, manually entered charges per merchant agreement only)
+- Live dynamic pricing or per-kilometer charges in v1
 - A public API or third-party integrations in v1 (Shopify and WooCommerce import deferred to v2)
 - Native iOS or Android apps in v1 (PWA only, with Capacitor as a later escape hatch)
-- Replacing WhatsApp as the merchant and customer notification channel — Indek sends notifications *through* WhatsApp, it does not try to move merchants off it
+- WhatsApp integration in v1
 
 ## Success signals
 
 - **Customer (rider and merchant) outcome:** Failed-delivery rate trends down delivery over delivery; rider disputes drop to near zero because the event log answers every question; merchants stop asking "where's my money?" and remittance statements arrive on schedule, itemized correctly, with VAT on the right line.
-- **Operator outcome:** End-of-shift reconciliation takes minutes instead of hours; ops stops using WhatsApp for dispatching and uses it only for customer-facing notifications; the fleet scales past ten riders without a linear increase in ops headcount; the operator survives a summer without the midday ban breaking the workflow.
+- **Operator outcome:** End-of-shift reconciliation takes minutes instead of hours; request review, dispatch, COD drop, route-based math, taxes, and exports all happen inside one admin flow; the fleet scales past ten riders without a linear increase in ops headcount; the operator survives a summer without the midday ban breaking the workflow.
 - **Business outcome:** COD variance approaches zero; the internal tool is proven load-bearing for the real business; architecture is clean enough — and the legal posture defensible enough — to onboard a second operator as an external tenant without a rewrite and without a regulatory conversation.
 
 ## Risks and open questions
 
 - **Risk:** The no-depot cash drop flow has no obviously correct physical answer. In-person handoff, CDM deposit by the rider directly, and operator-to-bank deposit each have tradeoffs, and the wrong default will create friction with riders. The choice also has legal implications — if the rider deposits directly to the operator's account via a CDM, the proof artifact (deposit slip) becomes part of the chain of custody.
 - **Risk:** Riders may resist using a PWA over WhatsApp for logging outcomes, especially in the first weeks. Adoption is a training and UX problem, not a technology problem — and the rider workforce has limited smartphone literacy on average.
-- **Risk:** The CBUAE regulatory line is bright but not infinitely far away. Any feature that makes Indek *feel* like a payment platform — a digital wallet for riders, a "hold" on COD funds, an instant-remittance loan product — could pull the platform into stored-value-facility or payment-aggregation licensing scope. Every product decision must be tested against this constraint.
+- **Risk:** The CBUAE regulatory line is bright but not infinitely far away. Any feature that makes Indek _feel_ like a payment platform — a digital wallet for riders, a "hold" on COD funds, an instant-remittance loan product — could pull the platform into stored-value-facility or payment-aggregation licensing scope. Every product decision must be tested against this constraint.
 - **Risk:** Validating the product on a single internal fleet may hide assumptions that don't generalize to a second operator, particularly around merchant agreement variability (remittance cycles, COD fee percentages, dispute windows, RTO cost allocation are all per-contract).
 - **Risk:** The visa-sponsorship coupling between operator and rider is a power asymmetry the product cannot ignore. Features around rider pay, deductions for cash shortages, and termination workflows need careful design to avoid building tools that enable abuse.
 - **Open question:** What is the default cash drop mechanism in v1, and what proof artifact does it produce? The leading candidates are (a) in-person rider-to-ops handoff with photo + signature, (b) rider direct CDM deposit with slip upload, and (c) operator-led collection from rider home with logged visit.
 - **Open question:** How does Indek model the merchant agreement? It needs to be a configurable entity covering remittance cycle, COD handling fee percentage, accepted PoD methods, dispute window, RTO cost allocation, and per-merchant rider instructions — but in v1 it might just be a structured document attached to the merchant record.
 - **Open question:** What signal tells us we're ready to onboard a second operator as the first external tenant, and what does that onboarding look like?
 - **Open question:** Which v2 AI feature earns its place first — messy address resolution, arbitrary-format merchant intake parsing, or photo-PoD verification — and what's the data we need to collect in v1 to make v2 work?
-- **Open question:** How does Indek handle the partial-delivery and at-door-renegotiation cases at the *interface* level? The data model is clear (expected vs. actual COD with variance reason); the rider UX is harder because the rider is standing at a door with an impatient customer.
+- **Open question:** How does Indek handle the partial-delivery and at-door-renegotiation cases at the _interface_ level? The data model is clear (expected vs. actual COD with variance reason); the rider UX is harder because the rider is standing at a door with an impatient customer.
 
 ## Handoff to downstream docs
 

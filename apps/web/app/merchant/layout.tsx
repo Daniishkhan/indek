@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import { getMerchantForUser } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
-import { AppShell } from "@/components/app-shell";
+import { AppShell, type ShellNavItem } from "@/components/app-shell";
 
 export default async function MerchantLayout({
   children,
@@ -17,20 +17,25 @@ export default async function MerchantLayout({
 
   const name = session.user.name ?? session.user.email;
   const merchant = await getMerchantForUser(session.user.id);
-  const navItems = [
+  const navItems: ShellNavItem[] = [
     {
       href: "/merchant",
       label: "Overview",
-      caption: "Status visibility and remittance summary",
+      caption:
+        "Track parcel flow, delivery outcomes, and remittance visibility.",
+      icon: "dashboard",
+      section: "Workspace",
     },
     ...(merchant
       ? [
           {
             href: `/m/${merchant.token}`,
             label: "Request portal",
-            caption: "Open the bare MVP order entry surface",
+            caption: "Submit a new delivery request without operator re-entry.",
+            icon: "send",
             matchPrefix: "/m/",
-          },
+            section: "Workspace",
+          } satisfies ShellNavItem,
         ]
       : []),
   ];
@@ -38,10 +43,8 @@ export default async function MerchantLayout({
   return (
     <AppShell
       actions={[
-        { href: "/", label: "Site home", tone: "secondary" },
-        { href: "/sign-out", label: "Sign out", tone: "secondary" },
+        { href: "/sign-out", label: "Sign out", tone: "ghost", icon: "logout" },
       ]}
-      description="Follow parcel status, see delivered and failed outcomes, and keep merchant-facing visibility on the same request loop."
       navItems={navItems}
       role="merchant"
       title="Merchant workspace"
