@@ -25,7 +25,7 @@ export default async function SignUpPage() {
         <div className="auth-reveal auth-reveal-1">
           <span className="auth-role-hint">Bootstrap closed</span>
           <h1 className="auth-title" style={{ marginTop: 14 }}>
-            An operator <em>already exists</em>
+            An operator <span className="accent">already exists</span>
           </h1>
           <p className="auth-desc">
             This instance has been bootstrapped. Additional operators, riders,
@@ -59,9 +59,9 @@ export default async function SignUpPage() {
   return (
     <div className="auth-card">
       <div className="auth-reveal auth-reveal-1">
-        <span className="auth-role-hint">● Operator bootstrap</span>
+        <span className="auth-role-hint">Operator bootstrap</span>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Create the <em>first operator</em>
+          Create the <span className="accent">first operator</span>
         </h1>
         <p className="auth-desc">
           This is a one-time setup. The first operator becomes the admin for

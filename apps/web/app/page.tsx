@@ -1,3 +1,4 @@
+import Image from "next/image";
 import Link from "next/link";
 import { getOpsSnapshot, listMerchants } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
@@ -18,11 +19,12 @@ export default async function HomePage() {
       <div className="wrap">
         <nav className="nav">
           <Link href="/" className="brand">
-            Indek <small>v0 · Dubai</small>
+            <span className="brand-mark">I</span>
+            Indek <small>UAE</small>
           </Link>
           <div className="nav-right">
-            <Link href="#problem" className="nav-link hide-m">The problem</Link>
-            <Link href="#product" className="nav-link hide-m">The product</Link>
+            <Link href="#problem" className="nav-link hide-m">Problem</Link>
+            <Link href="#product" className="nav-link hide-m">Product</Link>
             <Link href="#surfaces" className="nav-link hide-m">Surfaces</Link>
             <Link href={consoleHref} className="nav-cta">
               {consoleLabel} <span className="arrow">→</span>
@@ -31,53 +33,75 @@ export default async function HomePage() {
         </nav>
       </div>
 
-      {/* Hero */}
+      {/* Hero — two column */}
       <section className="wrap hero-sec">
-        <div className="home-eyebrow reveal reveal-1">
-          COD operations for UAE couriers &nbsp;·&nbsp; Built for the fleet that outgrew WhatsApp
-        </div>
+        <div className="hero-grid">
+          <div className="hero-copy">
+            <div className="home-eyebrow reveal reveal-1">
+              <span className="dot" />
+              COD operations platform · Built for UAE courier fleets
+            </div>
 
-        <h1 className="display reveal reveal-2">
-          Every parcel.<br />
-          Every dirham.<br />
-          <em>Reconciled</em> <span className="stroke">at zero.</span>
-        </h1>
+            <h1 className="display reveal reveal-2">
+              Every parcel. Every dirham.{" "}
+              <span className="accent">Reconciled</span>{" "}
+              <span className="stroke">at zero.</span>
+            </h1>
 
-        <div className="hero-row reveal reveal-3">
-          <p className="lede">
-            Indek is the chain-of-custody operations platform for small UAE courier
-            operators running multi-merchant cash-on-delivery with home-based riders.
-            <b> Ninety-five percent of the work is cash, custody, and proof.</b> We
-            built the whole product around that — and around the single line we
-            won&apos;t cross: Indek never holds your money.
-          </p>
-          <div className="hero-cta">
-            <Link href="/operator" className="btn btn-primary">
-              Open the dispatch board <span className="arrow">→</span>
-            </Link>
-            <Link href="#product" className="btn btn-ghost">
-              How it works
-            </Link>
+            <p className="lede reveal reveal-3">
+              Indek is the chain-of-custody operations platform for small UAE
+              courier operators running multi-merchant cash-on-delivery with
+              home-based riders.{" "}
+              <b>Ninety-five percent of the work is cash, custody, and proof.</b>{" "}
+              We built the whole product around that — and around the single
+              line we won&apos;t cross: Indek never holds your money.
+            </p>
+
+            <div className="hero-cta reveal reveal-3">
+              <Link href="/operator" className="btn btn-primary">
+                Open the dispatch board <span className="arrow">→</span>
+              </Link>
+              <Link href="#product" className="btn btn-ghost">
+                How it works
+              </Link>
+            </div>
+          </div>
+
+          <div className="hero-art reveal reveal-2" aria-hidden="true">
+            <div className="hero-art-frame">
+              <Image
+                src="/rider-illustration.jpg"
+                alt=""
+                width={1536}
+                height={856}
+                priority
+                className="hero-art-img"
+              />
+            </div>
           </div>
         </div>
-      </section>
 
-      {/* Live ticker strip */}
-      <div className="wrap">
+        {/* Live ticker strip */}
         <div className="ticker reveal reveal-4">
           <div className="ticker-cell">
             <span className="ticker-label">Parcels in flight</span>
-            <span className="ticker-value">{String(snapshot.activeDeliveries).padStart(2, "0")}</span>
+            <span className="ticker-value">
+              {String(snapshot.activeDeliveries).padStart(2, "0")}
+            </span>
             <span className="ticker-foot">Out with riders, tracked live</span>
           </div>
           <div className="ticker-cell">
             <span className="ticker-label">Rider-held cash</span>
-            <span className="ticker-value ember">AED {snapshot.codExposureAed}</span>
+            <span className="ticker-value accent">
+              AED {snapshot.codExposureAed}
+            </span>
             <span className="ticker-foot">Across the fleet, per-merchant</span>
           </div>
           <div className="ticker-cell">
             <span className="ticker-label">Awaiting reattempt</span>
-            <span className="ticker-value">{String(snapshot.failedAttempts).padStart(2, "0")}</span>
+            <span className="ticker-value">
+              {String(snapshot.failedAttempts).padStart(2, "0")}
+            </span>
             <span className="ticker-foot">Queued with reason codes</span>
           </div>
           <div className="ticker-cell">
@@ -86,37 +110,22 @@ export default async function HomePage() {
             <span className="ticker-foot">Shift won&apos;t close until it clears</span>
           </div>
         </div>
-      </div>
-
-      {/* Marquee */}
-      <div className="marquee">
-        <div className="marquee-track">
-          {Array.from({ length: 2 }).map((_, i) => (
-            <span key={i}>
-              COD is ~32% of UAE e-commerce orders <span className="dot">◆</span>
-              20% of COD parcels come back <span className="dot">◆</span>
-              2–5% of collected COD leaks to untraced variance <span className="dot">◆</span>
-              Summer midday ban eats 2.5 hrs/day · Jun 15–Sep 15 <span className="dot">◆</span>
-              Indek never holds operator funds <span className="dot">◆</span>
-            </span>
-          ))}
-        </div>
-      </div>
+      </section>
 
       {/* Problem */}
       <section id="problem" className="wrap section">
         <div className="section-head">
-          <div className="section-num">01 / Problem</div>
+          <div className="section-num">01 · Problem</div>
           <div>
             <h2 className="section-title">
-              Three WhatsApp groups and a <em>shared sheet</em> is how most fleets
-              run. It breaks at ten riders.
+              Three WhatsApp groups and a shared sheet is how most fleets run.{" "}
+              <span className="accent">It breaks at ten riders.</span>
             </h2>
             <p className="section-sub">
-              The operator becomes a data-entry clerk to their own business. Cash
-              leaks across merchants. Riders argue about deliveries nobody scanned.
-              Merchants lose faith in remittance. The tenth rider is the one who
-              breaks the workflow.
+              The operator becomes a data-entry clerk to their own business.
+              Cash leaks across merchants. Riders argue about deliveries nobody
+              scanned. Merchants lose faith in remittance. The tenth rider is
+              the one who breaks the workflow.
             </p>
           </div>
         </div>
@@ -124,16 +133,17 @@ export default async function HomePage() {
         <div className="editorial">
           <div />
           <p className="pull">
-            A rider running one shift carries <em>AED 1,500–5,000</em> in pocket
-            cash — collected on behalf of a dozen merchants, co-mingled with their
+            A rider running one shift carries{" "}
+            <span className="accent">AED 1,500 – 5,000</span> in pocket cash —
+            collected on behalf of a dozen merchants, co-mingled with their
             personal float for change.
           </p>
           <p className="pull-copy">
-            There is no live view of who is holding how much for whom. No automatic
-            reconciliation between delivered parcels and handed-in cash. No
-            per-merchant sub-ledger when the rider returns at end of day.
-            Small losses compound into unprofitable months. Merchant trust erodes
-            quietly, then all at once.
+            There is no live view of who is holding how much for whom. No
+            automatic reconciliation between delivered parcels and handed-in
+            cash. No per-merchant sub-ledger when the rider returns at end of
+            day. Small losses compound into unprofitable months. Merchant trust
+            erodes quietly, then all at once.
           </p>
         </div>
 
@@ -144,18 +154,18 @@ export default async function HomePage() {
             </span>
             <span className="stat-label">COD return rate</span>
             <span className="stat-caption">
-              Versus 3% on prepaid. Every fifth parcel becomes reverse logistics the
-              operator absorbs.
+              Versus 3% on prepaid. Every fifth parcel becomes reverse logistics
+              the operator absorbs.
             </span>
           </div>
           <div className="stat">
             <span className="stat-num">
-              2–5<span className="unit">%</span>
+              2 – 5<span className="unit">%</span>
             </span>
             <span className="stat-label">Cash leakage per month</span>
             <span className="stat-caption">
-              Industry estimate of collected COD that never traces back to a cause.
-              Untraced, it&apos;s unrecoverable.
+              Industry estimate of collected COD that never traces back to a
+              cause. Untraced, it&apos;s unrecoverable.
             </span>
           </div>
           <div className="stat">
@@ -164,7 +174,7 @@ export default async function HomePage() {
             </span>
             <span className="stat-label">UAE e-commerce on COD</span>
             <span className="stat-caption">
-              Roughly a third of orders. Not going away soon — and no platform
+              Roughly a third of orders. Not going away — and no platform
               serving small operators treats it as first-class.
             </span>
           </div>
@@ -174,15 +184,17 @@ export default async function HomePage() {
       {/* Product / Capabilities */}
       <section id="product" className="wrap section">
         <div className="section-head">
-          <div className="section-num">02 / Product</div>
+          <div className="section-num">02 · Product</div>
           <div>
             <h2 className="section-title">
-              Three tightly coupled capabilities — and <em>one line</em> we won&apos;t cross.
+              Three tightly coupled capabilities — and{" "}
+              <span className="accent">one line</span> we won&apos;t cross.
             </h2>
             <p className="section-sub">
-              Indek replaces the WhatsApp-and-Excel operation with chain of custody,
-              closed-loop cash, and a single control plane. Then a fourth thing — a
-              non-capability — that shapes every decision inside the product.
+              Indek replaces the WhatsApp-and-Excel operation with chain of
+              custody, closed-loop cash, and a single control plane. Then a
+              fourth thing — a non-capability — that shapes every decision
+              inside the product.
             </p>
           </div>
         </div>
@@ -191,14 +203,16 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">01</div>
             <h3 className="cap-title">
-              Chain of custody, <em>event-sourced</em> by default.
+              Chain of custody,{" "}
+              <span className="accent">event-sourced</span> by default.
             </h3>
             <div className="cap-body">
-              <b>Every state transition is an immutable event</b> — pickup, in-transit,
-              attempted, delivered, failed, in-return — with rider identity,
-              timestamp, geolocation, photo, and (for COD) a customer OTP.
-              Rider-to-rider handoffs and partial deliveries are first-class
-              events. Disputes become queries against an append-only log.
+              <b>Every state transition is an immutable event</b> — pickup,
+              in-transit, attempted, delivered, failed, in-return — with rider
+              identity, timestamp, geolocation, photo, and (for COD) a customer
+              OTP. Rider-to-rider handoffs and partial deliveries are
+              first-class events. Disputes become queries against an append-only
+              log.
               <div className="cap-tags">
                 <span className="cap-tag">Parcel lifecycle</span>
                 <span className="cap-tag">Custody transfer</span>
@@ -211,15 +225,17 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">02</div>
             <h3 className="cap-title">
-              Closed-loop cash with <em>per-merchant</em> sub-ledgers.
+              Closed-loop cash with{" "}
+              <span className="accent">per-merchant</span> sub-ledgers.
             </h3>
             <div className="cap-body">
-              Every rider has a live ledger tracking <b>COD collected per parcel,
-              per merchant</b>, personal change-float, inter-rider transfers, and
-              drops to the operator. Every COD line carries an expected amount, an
-              actual amount, and a variance reason — because partial acceptance and
-              at-door renegotiation are routine, not exceptions. End-of-shift
-              cannot close until parcels match zero and variance matches zero.
+              Every rider has a live ledger tracking{" "}
+              <b>COD collected per parcel, per merchant</b>, personal
+              change-float, inter-rider transfers, and drops to the operator.
+              Every COD line carries an expected amount, an actual amount, and a
+              variance reason — because partial acceptance and at-door
+              renegotiation are routine, not exceptions. End-of-shift cannot
+              close until parcels match zero and variance matches zero.
               <div className="cap-tags">
                 <span className="cap-tag">Rider cash ledger</span>
                 <span className="cap-tag">Expected vs actual</span>
@@ -231,14 +247,19 @@ export default async function HomePage() {
           <article className="cap">
             <div className="cap-num">03</div>
             <h3 className="cap-title">
-              One <em>control plane</em> — WhatsApp stays, but only as the pipe.
+              One <span className="accent">control plane</span> — WhatsApp stays,
+              but only as the pipe.
             </h3>
             <div className="cap-body">
-              One operator console for intake, dispatch, reconciliation, RTO, and
-              reporting. One rider PWA for scanning, delivering, and closing the
-              day. One tokenized merchant view for status and remittance.
-              <b> WhatsApp becomes the notification channel, not the system of record.</b>
-              The critical path — assignment, status, cash, proof — lives in Indek.
+              One operator console for intake, dispatch, reconciliation, RTO,
+              and reporting. One rider PWA for scanning, delivering, and closing
+              the day. One tokenized merchant view for status and remittance.{" "}
+              <b>
+                WhatsApp becomes the notification channel, not the system of
+                record.
+              </b>{" "}
+              The critical path — assignment, status, cash, proof — lives in
+              Indek.
               <div className="cap-tags">
                 <span className="cap-tag">Operator console</span>
                 <span className="cap-tag">Rider PWA</span>
@@ -250,16 +271,18 @@ export default async function HomePage() {
           <article className="cap constitutive">
             <div className="cap-num">— NC</div>
             <h3 className="cap-title">
-              Indek <em>never holds</em> your money. This is constitutive, not a feature.
+              Indek <span className="accent">never holds</span> your money. This
+              is constitutive, not a feature.
             </h3>
             <div className="cap-body">
               Cash moves physically: rider → operator → operator&apos;s bank →
-              merchant. Indek records every step but <b>never sits in the funds flow</b>.
-              That posture keeps the platform outside CBUAE retail-payment-services
-              and stored-value-facility licensing scope — and it must be defended
-              in every product decision we make from here on.
+              merchant. Indek records every step but{" "}
+              <b>never sits in the funds flow</b>. That posture keeps the
+              platform outside CBUAE retail-payment-services and
+              stored-value-facility licensing scope — and it must be defended in
+              every product decision we make from here on.
               <div className="cap-tags">
-                <span className="cap-tag">Logistics & reconciliation</span>
+                <span className="cap-tag">Logistics &amp; reconciliation</span>
                 <span className="cap-tag">Not a wallet</span>
                 <span className="cap-tag">Not a processor</span>
               </div>
@@ -271,16 +294,17 @@ export default async function HomePage() {
       {/* Ledger preview */}
       <section className="wrap section">
         <div className="section-head">
-          <div className="section-num">03 / How it looks</div>
+          <div className="section-num">03 · How it looks</div>
           <div>
             <h2 className="section-title">
-              The <em>end-of-shift</em> row, on the day a partial happens.
+              The <span className="accent">end-of-shift</span> row, on the day a
+              partial happens.
             </h2>
             <p className="section-sub">
               A real reconciliation scenario: 20 deliveries, one at-door
               renegotiation on a perfume order, one failed attempt queued for
-              reattempt, one partial acceptance. Variance traces to a reason code.
-              Shift closes only when the row balances.
+              reattempt, one partial acceptance. Variance traces to a reason
+              code. Shift closes only when the row balances.
             </p>
           </div>
         </div>
@@ -348,14 +372,16 @@ export default async function HomePage() {
       {/* Surfaces */}
       <section id="surfaces" className="wrap section">
         <div className="section-head">
-          <div className="section-num">04 / Surfaces</div>
+          <div className="section-num">04 · Surfaces</div>
           <div>
             <h2 className="section-title">
-              Three surfaces. <em>One source of truth.</em>
+              Three surfaces.{" "}
+              <span className="accent">One source of truth.</span>
             </h2>
             <p className="section-sub">
-              {merchants.length} merchants seeded in the demo. Tap in to any of the
-              three surfaces to see the same event log from a different angle.
+              {merchants.length} merchants seeded in the demo. Tap in to any of
+              the three surfaces to see the same event log from a different
+              angle.
             </p>
           </div>
         </div>
@@ -391,8 +417,8 @@ export default async function HomePage() {
             <span className="surface-tag">/m/:token</span>
             <h3 className="surface-name">Merchant view</h3>
             <p className="surface-desc">
-              Tokenized status and remittance, with masked customer details and a
-              statement-ready structure. No login. One link per merchant.
+              Tokenized status and remittance, with masked customer details and
+              a statement-ready structure. No login. One link per merchant.
             </p>
             <div className="surface-foot">
               <span>View demo</span>
@@ -402,32 +428,41 @@ export default async function HomePage() {
         </div>
       </section>
 
-      {/* Closing */}
-      <section className="wrap closing">
-        <div className="closing-eyebrow">— The promise</div>
-        <h2 className="closing-line">
-          End the shift at <em>zero variance</em>. Go home on time.
-        </h2>
-        <p className="closing-copy">
-          Indek is built for the operator whose current workflow cannot survive a
-          doubling of fleet size — and who knows it. The tenth rider is coming.
-          When they arrive, custody and cash will already be handled.
-        </p>
-        <div className="hero-cta" style={{ justifyContent: "flex-start" }}>
-          <Link href="/operator" className="btn btn-primary">
-            Open the dispatch board <span className="arrow">→</span>
-          </Link>
-          <Link href="/rider" className="btn btn-ghost">
-            See the rider PWA
-          </Link>
-        </div>
-      </section>
+      {/* Closing CTA band */}
+      <div className="wrap">
+        <section className="closing">
+          <div className="closing-wrap">
+            <div className="closing-eyebrow">The promise</div>
+            <h2 className="closing-line">
+              End the shift at{" "}
+              <span className="accent">zero variance</span>. Go home on time.
+            </h2>
+            <p className="closing-copy">
+              Indek is built for the operator whose current workflow cannot
+              survive a doubling of fleet size — and who knows it. The tenth
+              rider is coming. When they arrive, custody and cash will already
+              be handled.
+            </p>
+            <div className="hero-cta" style={{ justifyContent: "flex-start" }}>
+              <Link href="/operator" className="btn btn-primary">
+                Open the dispatch board <span className="arrow">→</span>
+              </Link>
+              <Link href="/rider" className="btn btn-ghost">
+                See the rider PWA
+              </Link>
+            </div>
+          </div>
+        </section>
+      </div>
 
       {/* Footer */}
       <div className="wrap">
         <footer className="foot">
-          <span>Indek · Dubai · v0 scaffold</span>
-          <span>Logistics & reconciliation · Not a payment processor</span>
+          <Link href="/" className="brand">
+            <span className="brand-mark">I</span>
+            Indek <small>UAE</small>
+          </Link>
+          <span>Logistics &amp; reconciliation · Not a payment processor</span>
         </footer>
       </div>
     </div>

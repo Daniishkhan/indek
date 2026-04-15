@@ -1,25 +1,28 @@
 import type { Metadata } from "next";
-import { Geist, Instrument_Serif, JetBrains_Mono } from "next/font/google";
+import { Inter, JetBrains_Mono } from "next/font/google";
 import { cn } from "@/lib/utils";
 import "./globals.css";
 
-const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
-const serif = Instrument_Serif({
+const inter = Inter({
   subsets: ["latin"],
-  weight: "400",
-  style: ["normal", "italic"],
-  variable: "--font-display"
+  weight: ["400", "500", "600", "700"],
+  style: ["normal"],
+  variable: "--font-inter",
+  display: "swap"
 });
+
 const mono = JetBrains_Mono({
   subsets: ["latin"],
   weight: ["400", "500"],
-  variable: "--font-mono"
+  style: ["normal"],
+  variable: "--font-mono",
+  display: "swap"
 });
 
 export const metadata: Metadata = {
-  title: "Indek — COD operations for UAE couriers",
+  title: "Indek — COD operations for UAE courier fleets",
   description:
-    "Chain-of-custody dispatch, rider, and merchant surfaces for multi-merchant UAE courier operations. Every parcel and every dirham reconciled at zero."
+    "Chain-of-custody dispatch, rider, and merchant surfaces for multi-merchant UAE courier operations running cash-on-delivery."
 };
 
 export default function RootLayout({
@@ -28,7 +31,7 @@ export default function RootLayout({
   return (
     <html
       lang="en"
-      className={cn("font-sans", geist.variable, serif.variable, mono.variable)}
+      className={cn("font-sans", inter.variable, mono.variable)}
     >
       <body>{children}</body>
     </html>

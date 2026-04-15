@@ -22,7 +22,7 @@ export default async function ResetPasswordPage({
         <div className="auth-reveal auth-reveal-1">
           <div className="auth-eyebrow">Reset flow</div>
           <h1 className="auth-title" style={{ marginTop: 14 }}>
-            This link is <em>invalid or expired</em>
+            This link is <span className="accent">invalid or expired</span>
           </h1>
           <p className="auth-desc">
             Reset links expire after one hour. Request a fresh link below to
@@ -61,7 +61,7 @@ export default async function ResetPasswordPage({
       <div className="auth-reveal auth-reveal-1">
         <div className="auth-eyebrow">Reset flow</div>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Choose a <em>new password</em>
+          Choose a <span className="accent">new password</span>
         </h1>
         <p className="auth-desc">
           Pick something at least eight characters long. You&apos;ll be signed

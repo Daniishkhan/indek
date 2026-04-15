@@ -21,7 +21,7 @@ export default async function SignInPage({
       <div className="auth-reveal auth-reveal-1">
         <div className="auth-eyebrow">Welcome back</div>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Sign in to <em>Indek</em>
+          Sign in to <span className="accent">Indek</span>
         </h1>
         <p className="auth-desc">
           Operator, rider, or merchant — use the credentials the ops team set

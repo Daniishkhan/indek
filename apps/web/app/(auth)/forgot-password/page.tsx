@@ -15,7 +15,7 @@ export default async function ForgotPasswordPage() {
       <div className="auth-reveal auth-reveal-1">
         <div className="auth-eyebrow">Reset flow</div>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Forgot your <em>password?</em>
+          Forgot your <span className="accent">password?</span>
         </h1>
         <p className="auth-desc">
           Enter the email on your Indek account. We&apos;ll send a secure link
