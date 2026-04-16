@@ -1,21 +1,26 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
 
 export default function SignOutPage() {
   const router = useRouter();
+  const startedRef = useRef(false);
 
   useEffect(() => {
-    (async () => {
-      await authClient.signOut();
-      router.push("/");
-      router.refresh();
+    if (startedRef.current) return;
+    startedRef.current = true;
+
+    void (async () => {
+      try {
+        await authClient.signOut();
+      } finally {
+        router.replace("/");
+        router.refresh();
+      }
     })();
   }, [router]);
 
-  return (
-    <p className="text-sm text-muted-foreground">Signing you out…</p>
-  );
+  return <p className="text-sm text-muted-foreground">Signing you out…</p>;
 }
