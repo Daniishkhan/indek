@@ -14,46 +14,15 @@ The repo is a pnpm workspace (pnpm 10.33, Node 20+). Root scripts proxy to `apps
 - `pnpm dev` — run the Next.js app (`next dev` in `apps/web`)
 - `pnpm build` / `pnpm lint` / `pnpm typecheck` — forwarded to `apps/web`
 - `pnpm --filter web <script>` — run a script in the web app directly
-- `make dev` — convenience alias for `pnpm dev`
-- `make seed` — convenience alias for `pnpm seed`
+- `make help` — lists Makefile targets; `make dev` additionally starts `apps/api` if it has been scaffolded (currently it has not)
 
 Run `pnpm typecheck` after meaningful TypeScript or path changes (per `AGENTS.md`). There is no test runner wired up yet.
-
-## Git workflow — GitButler CLI
-
-This repo uses **GitButler** (`but` CLI) instead of vanilla git for branch and commit management. The active branch is always `gitbutler/workspace` — an auto-managed merge of all applied virtual branches. Never commit directly to it with `git commit`.
-
-### Key commands
-
-| Task                           | Command                              |
-| ------------------------------ | ------------------------------------ |
-| Status (default)               | `but` or `but status`                |
-| New parallel branch            | `but branch new <name>`              |
-| New stacked (dependent) branch | `but branch new -a <parent> <child>` |
-| List branches                  | `but branch`                         |
-| Stage file to branch           | `but stage <file> <branch>`          |
-| Commit                         | `but commit -m "msg" [branch]`       |
-| Push                           | `but push [branch]`                  |
-| Create / update PR             | `but pr [branch]`                    |
-| View diff                      | `but diff [branch]`                  |
-| Undo last operation            | `but undo`                           |
-| Operations log                 | `but oplog`                          |
-| Unapply branch                 | `but unapply <branch>`               |
-| Return to vanilla git          | `but teardown`                       |
-
-### Rules for agents
-
-- **Use `but commit`, not `git commit`.** GitButler hooks block raw git commits on the workspace branch.
-- **Use `but push` / `but pr`** for pushing and pull requests.
-- When only one branch is applied, the `[branch]` argument can be omitted.
-- `but status` replaces `git status` for understanding workspace state.
-- Standard read-only git commands (`git log`, `git diff`, `git blame`) still work normally.
 
 ## Architecture
 
 ### Monorepo layout
 
-- `apps/web` — Next.js 16 App Router, React 19. Today this is both frontend and backend runtime.
+- `apps/web` — Next.js 16 App Router, React 19. Today this is both frontend and backend runtime; a dedicated `apps/api` is anticipated by the Makefile but not yet scaffolded.
 - `packages/shared` — pure TypeScript domain types (`Merchant`, `Rider`, `Parcel`, `Manifest`, `EventLogEntry`, `RemittanceStatement`, `IndekSeed`). No runtime logic.
 - `packages/domain` — selector/business-logic functions over seed data (`listRiders`, `getParcelsForRider`, `getOpsSnapshot`, token-based merchant lookup, etc.).
 - `packages/db` — currently just an in-memory `seedData` object typed as `IndekSeed`. The package is the seam where real persistence will land.

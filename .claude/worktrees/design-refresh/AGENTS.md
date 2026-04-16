@@ -24,16 +24,6 @@ This repository is for Indek, a COD-native courier operations platform. Agents w
 - Use the workspace package scope `@indek/*`.
 - Treat phrases like "dispatch board" as workflow terminology, not product branding.
 
-## Git Workflow — GitButler CLI
-
-This repo is managed with **GitButler** (`but` CLI). The working branch is `gitbutler/workspace`.
-
-- **Never use `git commit` or `git push`** — use `but commit` and `but push` instead. GitButler hooks will block raw git commits.
-- Use `but branch new <name>` to create branches, `but commit -m "msg" [branch]` to commit, `but push [branch]` to push, and `but pr [branch]` to open PRs.
-- `but status` shows applied branches and uncommitted changes — use it instead of `git status`.
-- Read-only git commands (`git log`, `git diff`, `git blame`) work normally.
-- Use `but undo` to reverse the last operation if something goes wrong.
-
 ## Working Style
 
 - Make focused changes.

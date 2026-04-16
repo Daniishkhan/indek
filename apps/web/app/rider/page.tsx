@@ -1,52 +1,40 @@
-import { CheckCircle2, MapPin, Wallet } from "lucide-react";
+import { Package, Truck, CheckCircle2, AlertTriangle } from "lucide-react";
 import { getRiderDashboardDataForUser } from "@indek/domain";
-import {
-  acceptManifestAction,
-  recordParcelDeliveredAction,
-  recordParcelFailedAction,
-} from "@/app/actions";
+import { acceptManifestAction } from "@/app/actions";
 import { getCurrentSession } from "@/lib/session";
-import { failureReasons, type FailureReason } from "@indek/shared";
 import { ProgressRing, chartColors } from "@/components/charts";
 
-const FAILURE_REASON_LABELS: Record<FailureReason, string> = {
-  customer_not_home: "Customer not home",
-  customer_refused: "Customer refused",
-  reschedule_requested: "Reschedule requested",
-  other: "Other",
-};
+function formatCurrency(value: number) {
+  return `AED ${value.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;
+}
 
 const NOTICE_COPY: Record<string, { tone: "success" | "warn"; text: string }> =
   {
     "manifest-accepted": {
       tone: "success",
-      text: "Manifest accepted. Assigned parcels are now in transit.",
+      text: "Work accepted — go to Deliveries to start.",
     },
     "manifest-accept-failed": {
       tone: "warn",
-      text: "That manifest could not be accepted. Refresh and try again.",
+      text: "Could not accept work. Try again.",
     },
     "parcel-delivered": {
       tone: "success",
-      text: "Parcel marked delivered.",
+      text: "Parcel marked as delivered.",
     },
     "parcel-failed": {
       tone: "success",
-      text: "Parcel marked failed and removed from the active worklist.",
+      text: "Parcel marked as failed.",
     },
     "failure-reason-required": {
       tone: "warn",
-      text: "Choose a failure reason before marking the parcel failed.",
+      text: "Pick a reason before marking failed.",
     },
     "delivery-failed": {
       tone: "warn",
-      text: "That parcel could not be updated. Refresh and try again.",
+      text: "Something went wrong. Try again.",
     },
   };
-
-function formatCurrency(value: number) {
-  return `AED ${value.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;
-}
 
 export default async function RiderHomePage({
   searchParams,
@@ -57,9 +45,7 @@ export default async function RiderHomePage({
     getCurrentSession(),
     searchParams,
   ]);
-  if (!session) {
-    return null;
-  }
+  if (!session) return null;
 
   const dashboard = await getRiderDashboardDataForUser(session.user.id);
   const notice = params.notice ? NOTICE_COPY[params.notice] : undefined;
@@ -67,21 +53,18 @@ export default async function RiderHomePage({
   if (!dashboard) {
     return (
       <section className="panel">
-        <div className="eyebrow">Rider workspace</div>
-        <h2>No rider profile is linked yet</h2>
+        <h2>Not set up yet</h2>
         <p>
-          This account can sign in on the rider route, but it has not been
-          linked to a rider profile in Indek yet.
+          Your account is not linked to a rider profile. Ask your operator to
+          set you up.
         </p>
       </section>
     );
   }
 
   const { manifest, parcels, rider } = dashboard;
-  const queuedParcels = parcels.filter((parcel) => parcel.state === "assigned");
-  const activeParcels = parcels.filter(
-    (parcel) => parcel.state === "in_transit",
-  );
+  const queuedParcels = parcels.filter((p) => p.state === "assigned");
+  const activeParcels = parcels.filter((p) => p.state === "in_transit");
   const deliveredParcels = parcels.filter((p) => p.state === "delivered");
   const failedParcels = parcels.filter((p) => p.state === "failed");
   const totalInShift = parcels.length;

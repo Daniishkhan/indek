@@ -112,6 +112,10 @@ function revalidateDeliverySurfaces(input: {
 }) {
   revalidateOperatorSurfaces();
   revalidatePath("/rider");
+  revalidatePath("/rider/deliveries");
+  revalidatePath("/rider/done");
+  revalidatePath("/rider/cash");
+  revalidatePath("/rider/parcel/[id]", "page");
   revalidatePath("/m/[token]", "page");
   revalidatePath("/operator/reconciliation/[riderId]", "page");
 
@@ -462,34 +466,34 @@ export async function acceptManifestAction(formData: FormData) {
 }
 
 export async function recordParcelDeliveredAction(formData: FormData) {
-  const actor = await requireRider("/rider");
+  const actor = await requireRider("/rider/deliveries");
   const parcelId = getText(formData, "parcelId");
 
   if (!parcelId) {
-    redirect(withNotice("/rider", "delivery-failed"));
+    redirect(withNotice("/rider/deliveries", "delivery-failed"));
   }
 
   let result: Awaited<ReturnType<typeof recordParcelDelivered>>;
   try {
     result = await recordParcelDelivered(parcelId, actor.userId, actor.label);
   } catch {
-    redirect(withNotice("/rider", "delivery-failed"));
+    redirect(withNotice("/rider/deliveries", "delivery-failed"));
   }
 
   revalidateDeliverySurfaces({
     merchantTokens: result.merchantToken ? [result.merchantToken] : [],
     riderId: result.riderId,
   });
-  redirect(withNotice("/rider", "parcel-delivered"));
+  redirect(withNotice("/rider/deliveries", "parcel-delivered"));
 }
 
 export async function recordParcelFailedAction(formData: FormData) {
-  const actor = await requireRider("/rider");
+  const actor = await requireRider("/rider/deliveries");
   const parcelId = getText(formData, "parcelId");
   const reasonValue = getText(formData, "reason");
 
   if (!parcelId || !failureReasons.includes(reasonValue as FailureReason)) {
-    redirect(withNotice("/rider", "failure-reason-required"));
+    redirect(withNotice("/rider/deliveries", "failure-reason-required"));
   }
 
   let result: Awaited<ReturnType<typeof recordParcelFailed>>;
@@ -501,14 +505,14 @@ export async function recordParcelFailedAction(formData: FormData) {
       actor.label,
     );
   } catch {
-    redirect(withNotice("/rider", "delivery-failed"));
+    redirect(withNotice("/rider/deliveries", "delivery-failed"));
   }
 
   revalidateDeliverySurfaces({
     merchantTokens: result.merchantToken ? [result.merchantToken] : [],
     riderId: result.riderId,
   });
-  redirect(withNotice("/rider", "parcel-failed"));
+  redirect(withNotice("/rider/deliveries", "parcel-failed"));
 }
 
 export async function completeMerchantOnboardingAction(formData: FormData) {

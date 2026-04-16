@@ -1,2 +1,9 @@
+PNPM ?= pnpm
+
+.PHONY: dev seed
+
+dev:
+	$(PNPM) dev
+
 seed:
-	pnpm seed
+	$(PNPM) seed

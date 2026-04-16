@@ -636,6 +636,27 @@ export async function getParcelsForRider(riderId: string): Promise<Parcel[]> {
   return hydrateParcels(rows);
 }
 
+export async function getParcelForRider(
+  parcelId: string,
+  riderUserId: string,
+): Promise<Parcel | undefined> {
+  const riderId = await getRiderIdForUser(riderUserId);
+  if (!riderId) return undefined;
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      ...baseParcelSelection,
+      merchantName: merchants.name,
+    })
+    .from(parcels)
+    .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
+    .where(and(eq(parcels.id, parcelId), eq(parcels.riderId, riderId)));
+
+  const hydrated = await hydrateParcels(rows);
+  return hydrated[0];
+}
+
 export async function getMerchantById(
   merchantId: string,
 ): Promise<Merchant | undefined> {
