@@ -19,35 +19,9 @@ The repo is a pnpm workspace (pnpm 10.33, Node 20+). Root scripts proxy to `apps
 
 Run `pnpm typecheck` after meaningful TypeScript or path changes (per `AGENTS.md`). There is no test runner wired up yet.
 
-## Git workflow — GitButler CLI
+## Git workflow
 
-This repo uses **GitButler** (`but` CLI) instead of vanilla git for branch and commit management. The active branch is always `gitbutler/workspace` — an auto-managed merge of all applied virtual branches. Never commit directly to it with `git commit`.
-
-### Key commands
-
-| Task                           | Command                              |
-| ------------------------------ | ------------------------------------ |
-| Status (default)               | `but` or `but status`                |
-| New parallel branch            | `but branch new <name>`              |
-| New stacked (dependent) branch | `but branch new -a <parent> <child>` |
-| List branches                  | `but branch`                         |
-| Stage file to branch           | `but stage <file> <branch>`          |
-| Commit                         | `but commit -m "msg" [branch]`       |
-| Push                           | `but push [branch]`                  |
-| Create / update PR             | `but pr [branch]`                    |
-| View diff                      | `but diff [branch]`                  |
-| Undo last operation            | `but undo`                           |
-| Operations log                 | `but oplog`                          |
-| Unapply branch                 | `but unapply <branch>`               |
-| Return to vanilla git          | `but teardown`                       |
-
-### Rules for agents
-
-- **Use `but commit`, not `git commit`.** GitButler hooks block raw git commits on the workspace branch.
-- **Use `but push` / `but pr`** for pushing and pull requests.
-- When only one branch is applied, the `[branch]` argument can be omitted.
-- `but status` replaces `git status` for understanding workspace state.
-- Standard read-only git commands (`git log`, `git diff`, `git blame`) still work normally.
+Standard git workflow. Use `git` and `gh` CLI for branch, commit, push, and PR operations. PRs go to `main`.
 
 ## Architecture
 
