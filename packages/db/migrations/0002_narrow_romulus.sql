@@ -1,0 +1,1 @@
+ALTER TABLE "merchants" ADD COLUMN "pickup_address" text;

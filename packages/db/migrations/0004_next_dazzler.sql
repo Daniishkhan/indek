@@ -1,0 +1,1 @@
+ALTER TABLE "parcels" ADD COLUMN "delivery_fee_aed" numeric(10, 2);

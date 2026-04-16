@@ -29,6 +29,7 @@ export const roleConfig: Record<
       "Review parcel status, remittance visibility, and merchant-facing request access.",
     signInPath: "/sign-in/merchant",
     homePath: "/merchant",
+    signUpPath: "/sign-up/merchant",
   },
   rider: {
     label: "Rider",

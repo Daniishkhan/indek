@@ -3,11 +3,11 @@
 import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { authClient } from "@/lib/auth-client";
-import { roleConfig } from "@/lib/role-config";
+import { roleConfig, type AppRole } from "@/lib/role-config";
 import { AuthAlert, PasswordToggle, SubmitButton } from "../components";
 import { mapAuthError } from "../errors";
 
-export function SignUpForm() {
+export function SignUpForm({ role = "operator" }: { role?: AppRole }) {
   const router = useRouter();
   const nameRef = useRef<HTMLInputElement>(null);
   const [name, setName] = useState("");
@@ -34,14 +34,14 @@ export function SignUpForm() {
       email: email.trim(),
       password,
       // @ts-expect-error — registered as additional field in server config
-      role: "operator",
+      role,
     });
     if (res.error) {
       setBusy(false);
       setErr(mapAuthError(res.error));
       return;
     }
-    router.push(roleConfig.operator.homePath);
+    router.push(roleConfig[role].homePath);
     router.refresh();
   }
 
@@ -120,7 +120,7 @@ export function SignUpForm() {
 
       <SubmitButton
         busy={busy}
-        label="Create operator account"
+        label={`Create ${roleConfig[role].shortLabel.toLowerCase()} account`}
         busyLabel="Creating…"
       />
     </form>

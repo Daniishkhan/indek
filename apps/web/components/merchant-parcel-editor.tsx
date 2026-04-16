@@ -1,37 +1,63 @@
 "use client";
 
 import { useState } from "react";
-import { estimateAverageShippingCharge, type Merchant } from "@indek/shared";
+import {
+  estimateAverageShippingCharge,
+  type Merchant,
+  type Parcel,
+} from "@indek/shared";
 
 function formatCurrency(value: number) {
   return `AED ${value.toFixed(2)}`;
 }
 
-export function MerchantRequestForm({
+export function MerchantParcelEditor({
   action,
   merchant,
+  parcel,
 }: {
   action: (formData: FormData) => void | Promise<void>;
   merchant: Merchant;
+  parcel: Parcel;
 }) {
+  const [isEditing, setIsEditing] = useState(false);
+  const [customerName, setCustomerName] = useState(parcel.customerName);
+  const [customerPhone, setCustomerPhone] = useState(parcel.customerPhone);
+  const [itemSummary, setItemSummary] = useState(parcel.itemSummary);
+  const [area, setArea] = useState(parcel.area);
+  const [address, setAddress] = useState(parcel.address);
   const [pickupAddress, setPickupAddress] = useState(
-    merchant.pickupAddress ?? "",
+    parcel.pickupAddress ?? "",
   );
-  const [deliveryArea, setDeliveryArea] = useState("");
-  const [deliveryAddress, setDeliveryAddress] = useState("");
+  const [notes, setNotes] = useState(parcel.notes ?? "");
+  const [codAmountAed, setCodAmountAed] = useState(
+    parcel.codAmountAed.toFixed(2),
+  );
 
   const quote = estimateAverageShippingCharge({
     baseFeeAed: merchant.deliveryFeeAed,
     pickupAddress,
-    deliveryArea,
-    deliveryAddress,
+    deliveryArea: area,
+    deliveryAddress: address,
   });
-  const hasAddressInputs =
-    pickupAddress.trim().length > 0 && deliveryAddress.trim().length > 0;
+
+  if (!isEditing) {
+    return (
+      <button
+        className="button ghost"
+        onClick={() => setIsEditing(true)}
+        style={{ width: "fit-content" }}
+        type="button"
+      >
+        Update this request
+      </button>
+    );
+  }
 
   return (
     <form action={action} className="stack">
       <input name="token" type="hidden" value={merchant.token} />
+      <input name="parcelId" type="hidden" value={parcel.id} />
       <input
         name="averageShippingChargeAed"
         type="hidden"
@@ -41,23 +67,14 @@ export function MerchantRequestForm({
       <div className="estimate-card">
         <div className="split">
           <div>
-            <div className="label">Average shipping charge</div>
+            <div className="label">Updated shipping charge</div>
             <div className="metric-value">
               {formatCurrency(quote.averageChargeAed)}
             </div>
           </div>
           <span className="chip">{quote.bandLabel}</span>
         </div>
-        <p>
-          {hasAddressInputs
-            ? quote.summary
-            : "Enter both pickup and delivery details to see the average shipping charge before you submit."}
-        </p>
-        <div className="muted">
-          Ops sees this request in-app right after submission and can assign it
-          from the dispatch board. No separate push or email is sent in this
-          MVP.
-        </div>
+        <p>{quote.summary}</p>
       </div>
 
       <div className="form-grid">
@@ -66,8 +83,9 @@ export function MerchantRequestForm({
           <input
             className="input"
             name="customerName"
-            placeholder="Maha Saeed"
+            onChange={(event) => setCustomerName(event.target.value)}
             required
+            value={customerName}
           />
         </label>
         <label className="form-field">
@@ -75,8 +93,9 @@ export function MerchantRequestForm({
           <input
             className="input"
             name="customerPhone"
-            placeholder="+971 50 111 2233"
+            onChange={(event) => setCustomerPhone(event.target.value)}
             required
+            value={customerPhone}
           />
         </label>
         <label className="form-field">
@@ -84,21 +103,21 @@ export function MerchantRequestForm({
           <input
             className="input"
             name="area"
-            onChange={(event) => setDeliveryArea(event.target.value)}
-            placeholder="JVC"
+            onChange={(event) => setArea(event.target.value)}
             required
-            value={deliveryArea}
+            value={area}
           />
         </label>
         <label className="form-field">
-          <span className="label">COD amount</span>
+          <span className="label">COD amount (AED)</span>
           <input
             className="input"
-            defaultValue="0"
             min="0"
             name="codAmountAed"
+            onChange={(event) => setCodAmountAed(event.target.value)}
             step="0.01"
             type="number"
+            value={codAmountAed}
           />
         </label>
         <label className="form-field">
@@ -106,8 +125,9 @@ export function MerchantRequestForm({
           <input
             className="input"
             name="itemSummary"
-            placeholder="Dessert box"
+            onChange={(event) => setItemSummary(event.target.value)}
             required
+            value={itemSummary}
           />
         </label>
       </div>
@@ -118,7 +138,6 @@ export function MerchantRequestForm({
           className="textarea"
           name="pickupAddress"
           onChange={(event) => setPickupAddress(event.target.value)}
-          placeholder="Bloom Boutique, Al Quoz industrial area 3, warehouse gate 2"
           required
           value={pickupAddress}
         />
@@ -129,25 +148,35 @@ export function MerchantRequestForm({
         <textarea
           className="textarea"
           name="address"
-          onChange={(event) => setDeliveryAddress(event.target.value)}
-          placeholder="Belgravia Heights, Tower B, apt 307"
+          onChange={(event) => setAddress(event.target.value)}
           required
-          value={deliveryAddress}
+          value={address}
         />
       </label>
 
       <label className="form-field">
-        <span className="label">Notes</span>
+        <span className="label">Notes for ops / rider</span>
         <textarea
           className="textarea"
           name="notes"
-          placeholder="Call before arrival or leave with reception."
+          onChange={(event) => setNotes(event.target.value)}
+          placeholder="Add context that answers the ops follow-up, if any."
+          value={notes}
         />
       </label>
 
-      <button className="button" type="submit">
-        Submit delivery request
-      </button>
+      <div className="split" style={{ justifyContent: "flex-end", gap: 8 }}>
+        <button
+          className="button ghost"
+          onClick={() => setIsEditing(false)}
+          type="button"
+        >
+          Cancel
+        </button>
+        <button className="button" type="submit">
+          Submit updates
+        </button>
+      </div>
     </form>
   );
 }

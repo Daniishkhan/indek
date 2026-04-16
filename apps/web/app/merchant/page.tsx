@@ -9,6 +9,8 @@ import {
 import { getMerchantPortalDataForUser } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
 import { BarCategoryChart, DonutChart, chartColors } from "@/components/charts";
+import { completeMerchantOnboardingAction } from "@/app/actions";
+import { MerchantOnboardingForm } from "./onboarding-form";
 
 function formatCurrency(value: number) {
   return `AED ${value.toLocaleString("en-AE", { maximumFractionDigits: 0 })}`;
@@ -21,8 +23,15 @@ function formatCurrencyCompact(value: number) {
   return `AED ${Math.round(value)}`;
 }
 
-export default async function MerchantHomePage() {
-  const session = await getCurrentSession();
+export default async function MerchantHomePage({
+  searchParams,
+}: {
+  searchParams: Promise<{ notice?: string }>;
+}) {
+  const [session, { notice }] = await Promise.all([
+    getCurrentSession(),
+    searchParams,
+  ]);
   if (!session) {
     return null;
   }
@@ -31,18 +40,97 @@ export default async function MerchantHomePage() {
 
   if (!portal) {
     return (
-      <section className="panel">
-        <div className="eyebrow">Merchant workspace</div>
-        <h2>No merchant profile is linked yet</h2>
-        <p>
-          This account can sign in on the merchant route, but it is not linked
-          to a merchant record in Indek yet.
-        </p>
-      </section>
+      <MerchantOnboardingForm
+        action={completeMerchantOnboardingAction}
+        notice={notice}
+      />
     );
   }
 
   const { merchant, parcels, remittance, summary } = portal;
+
+  if (parcels.length === 0) {
+    return (
+      <>
+        <section className="stats-grid">
+          <article className="kpi">
+            <div className="kpi-head">
+              <span className="kpi-label">Under review</span>
+              <span className="kpi-icon amber">
+                <Clock />
+              </span>
+            </div>
+            <div className="kpi-value">0</div>
+            <div className="kpi-foot">
+              <span>Requests awaiting ops review</span>
+            </div>
+          </article>
+
+          <article className="kpi">
+            <div className="kpi-head">
+              <span className="kpi-label">Active parcels</span>
+              <span className="kpi-icon">
+                <Package />
+              </span>
+            </div>
+            <div className="kpi-value">0</div>
+            <div className="kpi-foot">
+              <span>Out with riders</span>
+            </div>
+          </article>
+
+          <article className="kpi">
+            <div className="kpi-head">
+              <span className="kpi-label">Delivered</span>
+              <span className="kpi-icon success">
+                <CheckCircle2 />
+              </span>
+            </div>
+            <div className="kpi-value">0</div>
+            <div className="kpi-foot">
+              <span>AED 0 COD collected</span>
+            </div>
+          </article>
+
+          <article className="kpi">
+            <div className="kpi-head">
+              <span className="kpi-label">Open remittance</span>
+              <span className="kpi-icon cyan">
+                <Wallet />
+              </span>
+            </div>
+            <div className="kpi-value">AED 0</div>
+            <div className="kpi-foot">
+              <span>Net payable after fees</span>
+            </div>
+          </article>
+        </section>
+
+        <section
+          className="panel stack"
+          style={{ textAlign: "center", padding: "48px 24px" }}
+        >
+          <div>
+            <div className="eyebrow">Get started</div>
+            <h2 style={{ margin: "8px 0 0" }}>
+              Submit your first delivery request
+            </h2>
+            <p style={{ maxWidth: 520, margin: "8px auto 0" }}>
+              Use your request portal to create a pickup order. Ops reviews
+              every request before dispatching a rider — you can track progress
+              right here on the dashboard.
+            </p>
+          </div>
+          <div style={{ marginTop: 8 }}>
+            <Link className="button" href={`/m/${merchant.token}/orders`}>
+              <ExternalLink style={{ width: 14, height: 14, marginRight: 6 }} />
+              Create your first order
+            </Link>
+          </div>
+        </section>
+      </>
+    );
+  }
 
   const stateBreakdown = [
     {

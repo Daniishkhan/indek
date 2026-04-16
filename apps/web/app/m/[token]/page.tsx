@@ -1,16 +1,48 @@
 import { getMerchantPortalData } from "@indek/domain";
 import { notFound } from "next/navigation";
-import { createMerchantParcelAction } from "@/app/actions";
+import { CheckCircle2, Clock, Inbox, Package } from "lucide-react";
+import { updateMerchantFulfillmentAction } from "@/app/actions";
+import { FulfillmentSetup } from "@/components/fulfillment-setup";
 import { AppShell } from "@/components/app-shell";
-import { MerchantRequestForm } from "@/components/merchant-request-form";
 import { getCurrentSession } from "@/lib/session";
+import {
+  getMerchantNavItems,
+  getPublicPortalNavItems,
+} from "@/lib/merchant-nav";
 
 export const dynamic = "force-dynamic";
 
-const NOTICE_COPY: Record<string, string> = {
-  "order-submitted":
-    "Delivery request submitted. Ops can now see it in the in-app dispatch queue.",
-};
+const NOTICE_COPY: Record<string, { tone: "success" | "warn"; text: string }> =
+  {
+    "order-submitted": {
+      tone: "success",
+      text: "Delivery request submitted. Ops will review it before dispatch.",
+    },
+    "request-updated": {
+      tone: "success",
+      text: "Request updated and re-sent to ops for review.",
+    },
+    "request-update-failed": {
+      tone: "warn",
+      text: "That update could not be saved. Refresh and try again.",
+    },
+    "bulk-uploaded": {
+      tone: "success",
+      text: "Bulk upload complete. Your orders are now under ops review.",
+    },
+    "bulk-upload-failed": {
+      tone: "warn",
+      text: "Bulk upload failed. Check your CSV and try again.",
+    },
+    "fulfillment-saved": {
+      tone: "success",
+      text: "Fulfillment setup updated.",
+    },
+    "pickup-missing": {
+      tone: "warn",
+      text: "Pickup address is required when using rider pickup.",
+    },
+  };
 
 function formatCurrency(value: number) {
   return `AED ${value.toFixed(2)}`;
@@ -36,7 +68,7 @@ export default async function MerchantPage({
     notFound();
   }
 
-  const { merchant, parcels, remittance, summary } = portal;
+  const { merchant, remittance, summary } = portal;
   const notice = noticeCode ? NOTICE_COPY[noticeCode] : undefined;
   const sessionRole = (session?.user as { role?: string } | undefined)?.role;
   const userLabel =
@@ -61,76 +93,114 @@ export default async function MerchantPage({
   return (
     <AppShell
       actions={actions}
-      navItems={[
-        {
-          href: `/m/${merchant.token}`,
-          label: "Request portal",
-          caption: "Create orders and follow live status",
-          matchPrefix: "/m/",
-        },
-        {
-          href: "/merchant",
-          label: "Merchant workspace",
-          caption: "Signed-in visibility and remittance view",
-        },
-      ]}
+      navItems={
+        sessionRole === "merchant"
+          ? getMerchantNavItems(merchant.token)
+          : getPublicPortalNavItems(merchant.token)
+      }
       role="merchant"
       title={`${merchant.name} portal`}
       userLabel={userLabel}
     >
-      <section className="hero">
-        <div className="eyebrow">Merchant portal</div>
-        <h1>{merchant.name}</h1>
-        <p>
-          Place a delivery request, then keep watching its progress from the
-          same page. This is the bare MVP loop the operator sees on their side.
-        </p>
+      <section
+        className="panel"
+        style={{ display: "flex", alignItems: "center", gap: 20 }}
+      >
+        <div
+          style={{
+            width: 56,
+            height: 56,
+            borderRadius: "var(--radius-md)",
+            background: "var(--primary)",
+            color: "#fff",
+            display: "flex",
+            alignItems: "center",
+            justifyContent: "center",
+            fontSize: "1.4rem",
+            fontWeight: 700,
+            flexShrink: 0,
+            letterSpacing: "-0.02em",
+          }}
+        >
+          {merchant.name.charAt(0).toUpperCase()}
+        </div>
+        <div>
+          <h2 style={{ margin: 0, fontSize: "1.15rem" }}>{merchant.name}</h2>
+          <p style={{ margin: "4px 0 0", fontSize: "0.88rem" }}>
+            Place a delivery request and track its progress. Ops reviews every
+            request before dispatch.
+          </p>
+        </div>
       </section>
 
       <section className="stats-grid">
-        <article className="metric">
-          <div className="label">Awaiting assignment</div>
-          <div className="metric-value">{summary.awaitingAssignmentCount}</div>
-          <div className="muted">Fresh requests waiting for dispatch</div>
-        </article>
-        <article className="metric">
-          <div className="label">Active parcels</div>
-          <div className="metric-value">{summary.activeCount}</div>
-          <div className="muted">
-            Already assigned or moving through the field
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Under review</span>
+            <span className="kpi-icon amber">
+              <Clock />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.underReviewCount}</div>
+          <div className="kpi-foot">
+            <span>Ops is checking these now</span>
           </div>
         </article>
-        <article className="metric">
-          <div className="label">Delivered</div>
-          <div className="metric-value">{summary.deliveredCount}</div>
-          <div className="muted">Completed in the current visible cycle</div>
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Needs your input</span>
+            <span className="kpi-icon">
+              <Inbox />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.needsClarificationCount}</div>
+          <div className="kpi-foot">
+            <span>Update below and ops will re-review</span>
+          </div>
         </article>
-        <article className="metric">
-          <div className="label">Failed attempts</div>
-          <div className="metric-value">{summary.failedCount}</div>
-          <div className="muted">
-            Needs operator reattempt or recovery handling
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Awaiting dispatch</span>
+            <span className="kpi-icon success">
+              <CheckCircle2 />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.awaitingAssignmentCount}</div>
+          <div className="kpi-foot">
+            <span>Approved, waiting for a rider</span>
+          </div>
+        </article>
+        <article className="kpi">
+          <div className="kpi-head">
+            <span className="kpi-label">Active parcels</span>
+            <span className="kpi-icon cyan">
+              <Package />
+            </span>
+          </div>
+          <div className="kpi-value">{summary.activeCount}</div>
+          <div className="kpi-foot">
+            <span>Moving through the field</span>
           </div>
         </article>
       </section>
+
+      {notice ? (
+        <div className={`notice ${notice.tone}`}>{notice.text}</div>
+      ) : null}
 
       <section className="grid">
         <article className="panel stack">
           <div>
-            <div className="eyebrow">Request a pickup</div>
-            <h2>Create a new delivery order</h2>
+            <div className="eyebrow">Fulfillment</div>
+            <h2>How do parcels reach the rider?</h2>
             <p>
-              Enter the pickup and delivery addresses first so Indek can show
-              the average shipping charge before you submit. Once sent, the
-              admin sees the new delivery inside the operator console and can
-              assign it from dispatch.
+              Choose whether a rider picks up from your location, or you drop
+              parcels off at our hub.
             </p>
           </div>
 
-          {notice ? <div className="notice success">{notice}</div> : null}
-
-          <MerchantRequestForm
-            action={createMerchantParcelAction}
+          <FulfillmentSetup
+            action={updateMerchantFulfillmentAction}
             merchant={merchant}
           />
         </article>
@@ -185,55 +255,6 @@ export default async function MerchantPage({
             </div>
           )}
         </aside>
-      </section>
-
-      <section className="panel stack">
-        <div className="split">
-          <div>
-            <div className="eyebrow">Parcel status</div>
-            <h2>Active and recent delivery requests</h2>
-          </div>
-          <span className="chip">{parcels.length} orders</span>
-        </div>
-
-        {parcels.length > 0 ? (
-          <div className="list">
-            {parcels.map((parcel) => (
-              <div className="list-item" key={parcel.id}>
-                <div className="split">
-                  <strong>{parcel.awb}</strong>
-                  <span className="chip">{parcel.state.replace("_", " ")}</span>
-                </div>
-                <div>{parcel.customerName}</div>
-                <div className="muted">
-                  {parcel.area} · {parcel.itemSummary} ·{" "}
-                  {formatCurrency(parcel.codAmountAed)}
-                </div>
-                {parcel.pickupAddress ? (
-                  <div className="muted">Pickup: {parcel.pickupAddress}</div>
-                ) : null}
-                {parcel.averageShippingChargeAed !== undefined ? (
-                  <div className="muted">
-                    Average shipping charge:{" "}
-                    {formatCurrency(parcel.averageShippingChargeAed)}
-                  </div>
-                ) : null}
-                <div className="muted">
-                  Updated {new Date(parcel.lastUpdateAt).toLocaleString()}
-                </div>
-                <div className="muted">Dropoff: {parcel.address}</div>
-              </div>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <strong>No requests have been submitted yet.</strong>
-            <span className="muted">
-              The first order you submit above will show its status here and on
-              the operator dashboard.
-            </span>
-          </div>
-        )}
       </section>
     </AppShell>
   );

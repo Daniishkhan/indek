@@ -6,6 +6,7 @@
     "dev": "pnpm --filter web dev",
     "build": "pnpm --filter web build",
     "lint": "pnpm --filter web lint",
+    "test:backend": "pnpm --filter @indek/domain test",
     "typecheck": "pnpm --filter web typecheck",
     "check": "pnpm lint && pnpm typecheck",
     "check:full": "pnpm check && pnpm build",
