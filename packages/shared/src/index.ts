@@ -9,6 +9,19 @@ export type ParcelState =
   | "in_return"
   | "returned";
 
+export const parcelReviewStates = [
+  "under_review",
+  "needs_clarification",
+  "on_hold",
+  "dispatch_ready",
+] as const;
+
+export type ParcelReviewState = (typeof parcelReviewStates)[number];
+
+export const parcelFollowUpStatuses = ["open", "resolved"] as const;
+
+export type ParcelFollowUpStatus = (typeof parcelFollowUpStatuses)[number];
+
 export type ProofRequirement = "photo" | "otp" | "photo+otp";
 
 export type RemittanceCycle = "daily" | "weekly" | "biweekly" | "monthly";
@@ -21,6 +34,34 @@ export const failureReasons = [
 ] as const;
 
 export type FailureReason = (typeof failureReasons)[number];
+
+export const requestReviewChecklistFields = [
+  {
+    key: "addressConfirmed",
+    label: "Address and serviceability checked",
+  },
+  {
+    key: "contactConfirmed",
+    label: "Customer contact details checked",
+  },
+  {
+    key: "pickupConfirmed",
+    label: "Pickup details confirmed",
+  },
+  {
+    key: "codConfirmed",
+    label: "COD amount confirmed",
+  },
+  {
+    key: "riskChecked",
+    label: "Risk and inconsistency check complete",
+  },
+] as const;
+
+export type RequestReviewChecklistKey =
+  (typeof requestReviewChecklistFields)[number]["key"];
+
+export type RequestReviewChecklist = Record<RequestReviewChecklistKey, boolean>;
 
 export type ShippingEstimateBand =
   | "same_zone"
@@ -240,6 +281,8 @@ export function parseParcelWorkflowNotes(notes?: string | null) {
   }
 }
 
+export type FulfillmentMode = "pickup" | "dropoff";
+
 export interface Merchant {
   id: string;
   name: string;
@@ -248,6 +291,8 @@ export interface Merchant {
   proofRequirement: ProofRequirement;
   codFeePercent: number;
   deliveryFeeAed: number;
+  fulfillmentMode: FulfillmentMode;
+  pickupAddress?: string;
   disputeWindowDays: number;
   createdAt: string;
   updatedAt: string;
@@ -267,6 +312,17 @@ export interface Rider {
   updatedAt: string;
 }
 
+export interface ParcelFollowUp {
+  id: string;
+  parcelId: string;
+  message: string;
+  status: ParcelFollowUpStatus;
+  createdAt: string;
+  createdByLabel: string;
+  resolvedAt?: string;
+  resolvedByLabel?: string;
+}
+
 export interface Parcel {
   id: string;
   awb: string;
@@ -280,8 +336,15 @@ export interface Parcel {
   address: string;
   pickupAddress?: string;
   codAmountAed: number;
+  deliveryFeeAed?: number;
   averageShippingChargeAed?: number;
   state: ParcelState;
+  reviewState: ParcelReviewState;
+  reviewChecklist?: RequestReviewChecklist;
+  reviewNote?: string;
+  reviewedAt?: string;
+  reviewedByLabel?: string;
+  latestFollowUp?: ParcelFollowUp;
   lastUpdateAt: string;
   itemSummary: string;
   notes?: string;
@@ -333,6 +396,10 @@ export interface OpsSnapshot {
   activeDeliveries: number;
   failedAttempts: number;
   unassigned: number;
+  reviewQueue: number;
+  needsClarification: number;
+  onHold: number;
+  dispatchReady: number;
   activeManifests: number;
   codExposureAed: number;
 }
@@ -343,6 +410,8 @@ export interface OperatorOverviewData {
   riders: Rider[];
   manifests: Manifest[];
   unassigned: Parcel[];
+  reviewQueue: Parcel[];
+  dispatchReady: Parcel[];
   recentParcels: Parcel[];
 }
 
@@ -350,6 +419,7 @@ export interface OperatorIntakeData {
   merchants: Merchant[];
   riders: Rider[];
   queue: Parcel[];
+  dispatchReady: Parcel[];
   recentParcels: Parcel[];
 }
 
@@ -357,6 +427,17 @@ export interface DispatchBoardData {
   riders: Rider[];
   parcels: Parcel[];
   manifests: Manifest[];
+}
+
+export interface RequestReviewQueueData {
+  queue: Parcel[];
+  dispatchReady: Parcel[];
+  summary: {
+    underReviewCount: number;
+    needsClarificationCount: number;
+    onHoldCount: number;
+    dispatchReadyCount: number;
+  };
 }
 
 export interface MerchantPortalData {
@@ -367,6 +448,8 @@ export interface MerchantPortalData {
     activeCount: number;
     deliveredCount: number;
     failedCount: number;
+    underReviewCount: number;
+    needsClarificationCount: number;
     awaitingAssignmentCount: number;
   };
 }

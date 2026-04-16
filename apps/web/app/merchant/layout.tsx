@@ -3,6 +3,7 @@ import { getMerchantForUser } from "@indek/domain";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
 import { AppShell, type ShellNavItem } from "@/components/app-shell";
+import { getMerchantNavItems } from "@/lib/merchant-nav";
 
 export default async function MerchantLayout({
   children,
@@ -17,28 +18,18 @@ export default async function MerchantLayout({
 
   const name = session.user.name ?? session.user.email;
   const merchant = await getMerchantForUser(session.user.id);
-  const navItems: ShellNavItem[] = [
-    {
-      href: "/merchant",
-      label: "Overview",
-      caption:
-        "Track parcel flow, delivery outcomes, and remittance visibility.",
-      icon: "dashboard",
-      section: "Workspace",
-    },
-    ...(merchant
-      ? [
-          {
-            href: `/m/${merchant.token}`,
-            label: "Request portal",
-            caption: "Submit a new delivery request without operator re-entry.",
-            icon: "send",
-            matchPrefix: "/m/",
-            section: "Workspace",
-          } satisfies ShellNavItem,
-        ]
-      : []),
-  ];
+  const navItems: ShellNavItem[] = merchant
+    ? getMerchantNavItems(merchant.token)
+    : [
+        {
+          href: "/merchant",
+          label: "Overview",
+          caption:
+            "Track parcel flow, delivery outcomes, and remittance visibility.",
+          icon: "dashboard",
+          section: "Workspace",
+        },
+      ];
 
   return (
     <AppShell

@@ -1,10 +1,10 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { AuthRoleCards } from "../role-cards";
 import { getCurrentSession } from "@/lib/session";
 import { getRoleHome } from "@/lib/role-config";
+import { SignUpForm } from "../sign-up-form";
 
-export default async function SignUpPage() {
+export default async function MerchantSignUpPage() {
   const session = await getCurrentSession();
   if (session) {
     const role = (session.user as { role?: string }).role;
@@ -12,24 +12,25 @@ export default async function SignUpPage() {
   }
 
   return (
-    <div className="auth-card auth-card-wide">
+    <div className="auth-card">
       <div className="auth-reveal auth-reveal-1">
-        <div className="auth-eyebrow">Onboarding</div>
+        <span className="auth-role-hint">Merchant</span>
         <h1 className="auth-title" style={{ marginTop: 14 }}>
-          Start with the <span className="accent">right role</span>
+          Create your <span className="accent">merchant account</span>
         </h1>
         <p className="auth-desc">
-          Operators and merchants can self-register. Rider access is provisioned
-          by the operator team.
+          Sign up to access your delivery workspace, submit pickup requests, and
+          track parcels and remittance in real time.
         </p>
       </div>
 
       <div className="auth-reveal auth-reveal-2">
-        <AuthRoleCards mode="sign-up" />
+        <SignUpForm role="merchant" />
       </div>
 
       <div className="auth-foot auth-reveal auth-reveal-3">
-        Already set up? <Link href="/sign-in">Go to role sign in</Link>
+        Already have an account?{" "}
+        <Link href="/sign-in/merchant">Sign in as merchant</Link>
       </div>
     </div>
   );

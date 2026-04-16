@@ -12,8 +12,11 @@ import {
   LogOut,
   MapPin,
   Package,
+  Search,
   Send,
+  Settings,
   Truck,
+  Upload,
   Users,
   Wallet,
 } from "lucide-react";
@@ -28,8 +31,11 @@ const ICON_MAP = {
   logout: LogOut,
   map: MapPin,
   package: Package,
+  search: Search,
   send: Send,
+  settings: Settings,
   truck: Truck,
+  upload: Upload,
   users: Users,
   wallet: Wallet,
 } as const;
@@ -98,10 +104,9 @@ export function AppShell({
   topbarSlot?: ReactNode;
 }) {
   const pathname = usePathname();
-  const activeItem =
-    navItems
-      .filter((item) => isActivePath(pathname, item))
-      .sort((a, b) => b.href.length - a.href.length)[0] ?? navItems[0];
+  const activeItem = navItems
+    .filter((item) => isActivePath(pathname, item))
+    .sort((a, b) => b.href.length - a.href.length)[0];
 
   const sections = groupNavBySection(navItems);
 
@@ -127,7 +132,7 @@ export function AppShell({
                   <div className="app-nav-section-label">{label}</div>
                 ) : null}
                 {items.map((item) => {
-                  const active = isActivePath(pathname, item);
+                  const active = activeItem?.href === item.href;
                   const Icon = item.icon ? ICON_MAP[item.icon] : null;
                   return (
                     <Link
@@ -148,17 +153,19 @@ export function AppShell({
 
         <div />
 
-        <div className="app-sidebar-foot">
-          <div className="user-row">
-            <span className="app-user-chip-dot user-avatar">
-              {initials(userLabel)}
-            </span>
-            <div>
-              <div className="user-name">{userLabel ?? "Signed in"}</div>
-              <div className="user-role">{roleConfig[role].shortLabel}</div>
+        {userLabel ? (
+          <div className="app-sidebar-foot">
+            <div className="user-row">
+              <span className="app-user-chip-dot user-avatar">
+                {initials(userLabel)}
+              </span>
+              <div>
+                <div className="user-name">{userLabel}</div>
+                <div className="user-role">{roleConfig[role].shortLabel}</div>
+              </div>
             </div>
           </div>
-        </div>
+        ) : null}
       </aside>
 
       <div className="app-frame">

@@ -36,13 +36,15 @@ Use this file to record what is done, what is partial, and what is next.
 - Merchant token portal can create delivery requests and show active and recent parcel status.
 - Request entry captures pickup and dropoff details and shows a route-aware average shipping charge before submit.
 - Operator sees new delivery requests as in-app alerts and can assign them from dispatch.
+- Merchant-submitted requests now land in an operator review queue before dispatch.
+- Operator review records due-diligence checklist state, can approve for dispatch, send merchant follow-up, or hold a request.
+- Merchant follow-up is now request-scoped and durable, and merchant edits return the request to review instead of bypassing ops.
 - Rider can accept a manifest and resolve parcels as `delivered` or `failed`.
 - Shared app shell/navigation exists across operator, merchant, rider, and merchant token surfaces.
 - Husky and repo checks are in place.
 
 ### What is still partial or missing
 
-- Request review and merchant follow-up are not first-class workflow states yet.
 - Merchant public registration and admin approval do not exist yet.
 - Merchant signed-in access is not gated by approval state yet.
 - Rider access is not modeled as a real admin-controlled lifecycle yet.
@@ -75,7 +77,7 @@ Use this file to record what is done, what is partial, and what is next.
 ## Slice Tracker
 
 - [x] `S1` Intake and request capture
-- [ ] `S2` Request review and merchant follow-up
+- [x] `S2` Request review and merchant follow-up
 - [x] `S3` Dispatch and manifest assignment
 - [x] `S4` Rider execution basics
 - [ ] `S5` Reconciliation and close shift
@@ -93,12 +95,11 @@ Use this file to record what is done, what is partial, and what is next.
 
 Build these next, in order:
 
-1. `S2` Request review and merchant follow-up
-2. `S5` Reconciliation and close shift
-3. `S8` Finance module shell
-4. `S9` Remittance workflow
-5. `S10` Billing invoice workflow
-6. `S11` Finance email workflow
+1. `S5` Reconciliation and close shift
+2. `S8` Finance module shell
+3. `S9` Remittance workflow
+4. `S10` Billing invoice workflow
+5. `S11` Finance email workflow
 
 ## Not Now
 

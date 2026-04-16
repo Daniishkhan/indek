@@ -1,11 +1,12 @@
 import { randomUUID } from "node:crypto";
-import { and, asc, desc, eq, inArray } from "drizzle-orm";
+import { and, asc, desc, eq, inArray, or } from "drizzle-orm";
 import {
   events,
   getDb,
   manifests,
   merchantProfile,
   merchants,
+  parcelFollowUps,
   parcels,
   riderProfile,
   riders,
@@ -14,7 +15,9 @@ import {
   encodeParcelWorkflowNotes,
   failureReasons,
   parseParcelWorkflowNotes,
+  requestReviewChecklistFields,
   type FailureReason,
+  type RequestReviewChecklist,
 } from "@indek/shared";
 import type {
   DispatchBoardData,
@@ -26,13 +29,20 @@ import type {
   OperatorOverviewData,
   OpsSnapshot,
   Parcel,
+  ParcelFollowUp,
   ProofRequirement,
+  RequestReviewQueueData,
   RemittanceCycle,
   RemittanceStatement,
   Rider,
 } from "@indek/shared";
 
 const ACTIVE_WORK_STATES = new Set<Parcel["state"]>(["assigned", "in_transit"]);
+const REVIEW_QUEUE_STATES = new Set<Parcel["reviewState"]>([
+  "under_review",
+  "needs_clarification",
+  "on_hold",
+]);
 const RIDER_CUSTODY_STATES = new Set<Parcel["state"]>([
   "assigned",
   "in_transit",
@@ -40,6 +50,58 @@ const RIDER_CUSTODY_STATES = new Set<Parcel["state"]>([
   "in_return",
 ]);
 const FAILURE_REASON_SET = new Set<FailureReason>(failureReasons);
+const REVIEW_CHECKLIST_KEYS = requestReviewChecklistFields.map(
+  (field) => field.key,
+);
+
+const baseParcelSelection = {
+  id: parcels.id,
+  awb: parcels.awb,
+  merchantId: parcels.merchantId,
+  riderId: parcels.riderId,
+  manifestId: parcels.manifestId,
+  customerName: parcels.customerName,
+  customerPhone: parcels.customerPhone,
+  area: parcels.area,
+  address: parcels.address,
+  codAmountAed: parcels.codAmountAed,
+  deliveryFeeAed: parcels.deliveryFeeAed,
+  state: parcels.state,
+  reviewState: parcels.reviewState,
+  reviewChecklist: parcels.reviewChecklist,
+  reviewNote: parcels.reviewNote,
+  reviewedAt: parcels.reviewedAt,
+  reviewedByLabel: parcels.reviewedByLabel,
+  itemSummary: parcels.itemSummary,
+  notes: parcels.notes,
+  createdAt: parcels.createdAt,
+  updatedAt: parcels.updatedAt,
+};
+
+type ParcelRow = {
+  id: string;
+  awb: string;
+  merchantId: string;
+  merchantName?: string;
+  riderId: string | null;
+  manifestId: string | null;
+  customerName: string;
+  customerPhone: string;
+  area: string;
+  address: string;
+  codAmountAed: string | number;
+  deliveryFeeAed: string | number | null;
+  state: Parcel["state"];
+  reviewState: Parcel["reviewState"];
+  reviewChecklist: RequestReviewChecklist | null;
+  reviewNote: string | null;
+  reviewedAt: Date | null;
+  reviewedByLabel: string | null;
+  itemSummary: string | null;
+  notes: string | null;
+  createdAt: Date;
+  updatedAt: Date;
+};
 
 function roundCurrency(value: number) {
   return Math.round(value * 100) / 100;
@@ -56,6 +118,46 @@ function toIso(value: Date | string | null | undefined) {
   return value instanceof Date
     ? value.toISOString()
     : new Date(value).toISOString();
+}
+
+function buildDefaultReviewChecklist() {
+  return Object.fromEntries(
+    REVIEW_CHECKLIST_KEYS.map((key) => [key, false]),
+  ) as RequestReviewChecklist;
+}
+
+function normalizeReviewChecklist(
+  input?: Partial<RequestReviewChecklist> | null,
+): RequestReviewChecklist {
+  const normalized = buildDefaultReviewChecklist();
+
+  for (const key of REVIEW_CHECKLIST_KEYS) {
+    normalized[key] = Boolean(input?.[key]);
+  }
+
+  return normalized;
+}
+
+function buildApprovedReviewChecklist() {
+  return Object.fromEntries(
+    REVIEW_CHECKLIST_KEYS.map((key) => [key, true]),
+  ) as RequestReviewChecklist;
+}
+
+function isReviewChecklistComplete(checklist: RequestReviewChecklist) {
+  return REVIEW_CHECKLIST_KEYS.every((key) => checklist[key]);
+}
+
+function isDispatchReadyParcel(parcel: Pick<Parcel, "state" | "reviewState">) {
+  return (
+    parcel.state === "unassigned" && parcel.reviewState === "dispatch_ready"
+  );
+}
+
+function isReviewQueueParcel(parcel: Pick<Parcel, "state" | "reviewState">) {
+  return (
+    parcel.state === "unassigned" && REVIEW_QUEUE_STATES.has(parcel.reviewState)
+  );
 }
 
 function slugify(value: string) {
@@ -89,30 +191,37 @@ function formatMerchant(row: typeof merchants.$inferSelect): Merchant {
     proofRequirement: row.proofRequirement,
     codFeePercent: toNumber(row.codFeePercent),
     deliveryFeeAed: toNumber(row.deliveryFeeAed),
+    fulfillmentMode: row.fulfillmentMode,
+    pickupAddress: row.pickupAddress ?? undefined,
     disputeWindowDays: row.disputeWindowDays,
     createdAt: toIso(row.createdAt),
     updatedAt: toIso(row.updatedAt),
   };
 }
 
-function formatParcel(row: {
+function formatParcelFollowUp(row: {
   id: string;
-  awb: string;
-  merchantId: string;
-  merchantName?: string;
-  riderId: string | null;
-  manifestId: string | null;
-  customerName: string;
-  customerPhone: string;
-  area: string;
-  address: string;
-  codAmountAed: string | number;
-  state: Parcel["state"];
-  itemSummary: string | null;
-  notes: string | null;
+  parcelId: string;
+  message: string;
+  status: ParcelFollowUp["status"];
   createdAt: Date;
-  updatedAt: Date;
-}): Parcel {
+  createdByLabel: string | null;
+  resolvedAt: Date | null;
+  resolvedByLabel: string | null;
+}): ParcelFollowUp {
+  return {
+    id: row.id,
+    parcelId: row.parcelId,
+    message: row.message,
+    status: row.status,
+    createdAt: toIso(row.createdAt),
+    createdByLabel: row.createdByLabel ?? "Operator",
+    resolvedAt: row.resolvedAt ? toIso(row.resolvedAt) : undefined,
+    resolvedByLabel: row.resolvedByLabel ?? undefined,
+  };
+}
+
+function formatParcel(row: ParcelRow, latestFollowUp?: ParcelFollowUp): Parcel {
   const workflowNotes = parseParcelWorkflowNotes(row.notes);
 
   return {
@@ -128,8 +237,19 @@ function formatParcel(row: {
     address: row.address,
     pickupAddress: workflowNotes.pickupAddress,
     codAmountAed: roundCurrency(toNumber(row.codAmountAed)),
+    deliveryFeeAed: row.deliveryFeeAed
+      ? roundCurrency(toNumber(row.deliveryFeeAed))
+      : undefined,
     averageShippingChargeAed: workflowNotes.averageShippingChargeAed,
     state: row.state,
+    reviewState: row.reviewState,
+    reviewChecklist: row.reviewChecklist
+      ? normalizeReviewChecklist(row.reviewChecklist)
+      : undefined,
+    reviewNote: row.reviewNote ?? undefined,
+    reviewedAt: row.reviewedAt ? toIso(row.reviewedAt) : undefined,
+    reviewedByLabel: row.reviewedByLabel ?? undefined,
+    latestFollowUp,
     lastUpdateAt: toIso(row.updatedAt),
     itemSummary: row.itemSummary ?? "Parcel request",
     notes: workflowNotes.customerNotes,
@@ -227,7 +347,7 @@ function buildRemittanceStatement(
       parcelId: parcel.id,
       awb: parcel.awb,
       codAed: parcel.codAmountAed,
-      deliveryFeeAed: merchant.deliveryFeeAed,
+      deliveryFeeAed: parcel.deliveryFeeAed ?? merchant.deliveryFeeAed,
       handlingFeeAed,
     };
   });
@@ -270,8 +390,18 @@ async function buildMerchantPortalData(
       ).length,
       failedCount: merchantParcels.filter((parcel) => parcel.state === "failed")
         .length,
-      awaitingAssignmentCount: merchantParcels.filter(
-        (parcel) => parcel.state === "unassigned",
+      underReviewCount: merchantParcels.filter(
+        (parcel) =>
+          parcel.state === "unassigned" &&
+          parcel.reviewState === "under_review",
+      ).length,
+      needsClarificationCount: merchantParcels.filter(
+        (parcel) =>
+          parcel.state === "unassigned" &&
+          parcel.reviewState === "needs_clarification",
+      ).length,
+      awaitingAssignmentCount: merchantParcels.filter((parcel) =>
+        isDispatchReadyParcel(parcel),
       ).length,
     },
   };
@@ -315,6 +445,45 @@ async function getParcelRowsByManifestIds(manifestIds: string[]) {
     .where(inArray(parcels.manifestId, manifestIds));
 }
 
+async function getLatestFollowUpsByParcelIds(parcelIds: string[]) {
+  if (parcelIds.length === 0) {
+    return new Map<string, ParcelFollowUp>();
+  }
+
+  const db = getDb();
+  const rows = await db
+    .select({
+      id: parcelFollowUps.id,
+      parcelId: parcelFollowUps.parcelId,
+      message: parcelFollowUps.message,
+      status: parcelFollowUps.status,
+      createdAt: parcelFollowUps.createdAt,
+      createdByLabel: parcelFollowUps.createdByLabel,
+      resolvedAt: parcelFollowUps.resolvedAt,
+      resolvedByLabel: parcelFollowUps.resolvedByLabel,
+    })
+    .from(parcelFollowUps)
+    .where(inArray(parcelFollowUps.parcelId, parcelIds))
+    .orderBy(desc(parcelFollowUps.createdAt));
+
+  const latestByParcel = new Map<string, ParcelFollowUp>();
+  for (const row of rows) {
+    if (!latestByParcel.has(row.parcelId)) {
+      latestByParcel.set(row.parcelId, formatParcelFollowUp(row));
+    }
+  }
+
+  return latestByParcel;
+}
+
+async function hydrateParcels(rows: ParcelRow[]) {
+  const latestFollowUps = await getLatestFollowUpsByParcelIds(
+    rows.map((row) => row.id),
+  );
+
+  return rows.map((row) => formatParcel(row, latestFollowUps.get(row.id)));
+}
+
 export async function listMerchants(): Promise<Merchant[]> {
   const db = getDb();
   const rows = await db.select().from(merchants).orderBy(asc(merchants.name));
@@ -325,57 +494,39 @@ export async function listParcels(): Promise<Parcel[]> {
   const db = getDb();
   const rows = await db
     .select({
-      id: parcels.id,
-      awb: parcels.awb,
-      merchantId: parcels.merchantId,
+      ...baseParcelSelection,
       merchantName: merchants.name,
-      riderId: parcels.riderId,
-      manifestId: parcels.manifestId,
-      customerName: parcels.customerName,
-      customerPhone: parcels.customerPhone,
-      area: parcels.area,
-      address: parcels.address,
-      codAmountAed: parcels.codAmountAed,
-      state: parcels.state,
-      itemSummary: parcels.itemSummary,
-      notes: parcels.notes,
-      createdAt: parcels.createdAt,
-      updatedAt: parcels.updatedAt,
     })
     .from(parcels)
     .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
     .orderBy(desc(parcels.createdAt));
 
-  return rows.map(formatParcel);
+  return hydrateParcels(rows);
 }
 
 export async function listUnassignedParcels(): Promise<Parcel[]> {
   const db = getDb();
   const rows = await db
     .select({
-      id: parcels.id,
-      awb: parcels.awb,
-      merchantId: parcels.merchantId,
+      ...baseParcelSelection,
       merchantName: merchants.name,
-      riderId: parcels.riderId,
-      manifestId: parcels.manifestId,
-      customerName: parcels.customerName,
-      customerPhone: parcels.customerPhone,
-      area: parcels.area,
-      address: parcels.address,
-      codAmountAed: parcels.codAmountAed,
-      state: parcels.state,
-      itemSummary: parcels.itemSummary,
-      notes: parcels.notes,
-      createdAt: parcels.createdAt,
-      updatedAt: parcels.updatedAt,
     })
     .from(parcels)
     .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
     .where(eq(parcels.state, "unassigned"))
     .orderBy(desc(parcels.createdAt));
 
-  return rows.map(formatParcel);
+  return hydrateParcels(rows);
+}
+
+export async function listReviewQueueParcels(): Promise<Parcel[]> {
+  const unassigned = await listUnassignedParcels();
+  return unassigned.filter((parcel) => isReviewQueueParcel(parcel));
+}
+
+export async function listDispatchReadyParcels(): Promise<Parcel[]> {
+  const unassigned = await listUnassignedParcels();
+  return unassigned.filter((parcel) => isDispatchReadyParcel(parcel));
 }
 
 export async function listRiders(): Promise<Rider[]> {
@@ -474,29 +625,15 @@ export async function getParcelsForRider(riderId: string): Promise<Parcel[]> {
   const db = getDb();
   const rows = await db
     .select({
-      id: parcels.id,
-      awb: parcels.awb,
-      merchantId: parcels.merchantId,
+      ...baseParcelSelection,
       merchantName: merchants.name,
-      riderId: parcels.riderId,
-      manifestId: parcels.manifestId,
-      customerName: parcels.customerName,
-      customerPhone: parcels.customerPhone,
-      area: parcels.area,
-      address: parcels.address,
-      codAmountAed: parcels.codAmountAed,
-      state: parcels.state,
-      itemSummary: parcels.itemSummary,
-      notes: parcels.notes,
-      createdAt: parcels.createdAt,
-      updatedAt: parcels.updatedAt,
     })
     .from(parcels)
     .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
     .where(eq(parcels.riderId, riderId))
     .orderBy(desc(parcels.updatedAt));
 
-  return rows.map(formatParcel);
+  return hydrateParcels(rows);
 }
 
 export async function getMerchantById(
@@ -535,29 +672,15 @@ export async function getParcelsForMerchant(
   const db = getDb();
   const rows = await db
     .select({
-      id: parcels.id,
-      awb: parcels.awb,
-      merchantId: parcels.merchantId,
+      ...baseParcelSelection,
       merchantName: merchants.name,
-      riderId: parcels.riderId,
-      manifestId: parcels.manifestId,
-      customerName: parcels.customerName,
-      customerPhone: parcels.customerPhone,
-      area: parcels.area,
-      address: parcels.address,
-      codAmountAed: parcels.codAmountAed,
-      state: parcels.state,
-      itemSummary: parcels.itemSummary,
-      notes: parcels.notes,
-      createdAt: parcels.createdAt,
-      updatedAt: parcels.updatedAt,
     })
     .from(parcels)
     .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
     .where(eq(parcels.merchantId, merchantId))
     .orderBy(desc(parcels.createdAt));
 
-  return rows.map(formatParcel);
+  return hydrateParcels(rows);
 }
 
 export async function getEventLogForParcel(
@@ -594,6 +717,29 @@ export async function getRemittanceForMerchant(
   );
 }
 
+export async function getRequestReviewQueueData(): Promise<RequestReviewQueueData> {
+  const [queue, dispatchReady] = await Promise.all([
+    listReviewQueueParcels(),
+    listDispatchReadyParcels(),
+  ]);
+
+  return {
+    queue,
+    dispatchReady,
+    summary: {
+      underReviewCount: queue.filter(
+        (parcel) => parcel.reviewState === "under_review",
+      ).length,
+      needsClarificationCount: queue.filter(
+        (parcel) => parcel.reviewState === "needs_clarification",
+      ).length,
+      onHoldCount: queue.filter((parcel) => parcel.reviewState === "on_hold")
+        .length,
+      dispatchReadyCount: dispatchReady.length,
+    },
+  };
+}
+
 export async function getOpsSnapshot(): Promise<OpsSnapshot> {
   const [merchantRows, riderRows, parcelRows, manifestRows] = await Promise.all(
     [listMerchants(), listRiders(), listParcels(), listActiveManifests()],
@@ -609,6 +755,19 @@ export async function getOpsSnapshot(): Promise<OpsSnapshot> {
       .length,
     unassigned: parcelRows.filter((parcel) => parcel.state === "unassigned")
       .length,
+    reviewQueue: parcelRows.filter((parcel) => isReviewQueueParcel(parcel))
+      .length,
+    needsClarification: parcelRows.filter(
+      (parcel) =>
+        parcel.state === "unassigned" &&
+        parcel.reviewState === "needs_clarification",
+    ).length,
+    onHold: parcelRows.filter(
+      (parcel) =>
+        parcel.state === "unassigned" && parcel.reviewState === "on_hold",
+    ).length,
+    dispatchReady: parcelRows.filter((parcel) => isDispatchReadyParcel(parcel))
+      .length,
     activeManifests: manifestRows.length,
     codExposureAed: roundCurrency(
       riderRows.reduce((sum, rider) => sum + rider.cashHeldAed, 0),
@@ -623,6 +782,8 @@ export async function getOperatorOverviewData(): Promise<OperatorOverviewData> {
     riderList,
     manifestList,
     unassigned,
+    reviewQueue,
+    dispatchReady,
     recentParcels,
   ] = await Promise.all([
     getOpsSnapshot(),
@@ -630,6 +791,8 @@ export async function getOperatorOverviewData(): Promise<OperatorOverviewData> {
     listRiders(),
     listActiveManifests(),
     listUnassignedParcels(),
+    listReviewQueueParcels(),
+    listDispatchReadyParcels(),
     listParcels(),
   ]);
 
@@ -639,22 +802,27 @@ export async function getOperatorOverviewData(): Promise<OperatorOverviewData> {
     riders: riderList,
     manifests: manifestList,
     unassigned,
+    reviewQueue,
+    dispatchReady,
     recentParcels: recentParcels.slice(0, 8),
   };
 }
 
 export async function getOperatorIntakeData(): Promise<OperatorIntakeData> {
-  const [merchantsList, riderList, queue, recentParcels] = await Promise.all([
-    listMerchants(),
-    listRiders(),
-    listUnassignedParcels(),
-    listParcels(),
-  ]);
+  const [merchantsList, riderList, queue, dispatchReady, recentParcels] =
+    await Promise.all([
+      listMerchants(),
+      listRiders(),
+      listReviewQueueParcels(),
+      listDispatchReadyParcels(),
+      listParcels(),
+    ]);
 
   return {
     merchants: merchantsList,
     riders: riderList,
     queue,
+    dispatchReady,
     recentParcels: recentParcels.slice(0, 6),
   };
 }
@@ -662,7 +830,7 @@ export async function getOperatorIntakeData(): Promise<OperatorIntakeData> {
 export async function getDispatchBoardData(): Promise<DispatchBoardData> {
   const [riderList, parcelList, manifestList] = await Promise.all([
     listRiders(),
-    listUnassignedParcels(),
+    listDispatchReadyParcels(),
     listActiveManifests(),
   ]);
 
@@ -748,6 +916,57 @@ export async function createMerchant(input: {
   return formatMerchant(row);
 }
 
+export async function createMerchantWithProfile(input: {
+  userId: string;
+  name: string;
+}) {
+  const db = getDb();
+  const now = new Date();
+  const merchantId = buildId("m");
+
+  await db.transaction(async (tx) => {
+    await tx.insert(merchants).values({
+      id: merchantId,
+      name: input.name.trim(),
+      token: buildMerchantToken(input.name),
+      remittanceCycle: "weekly",
+      proofRequirement: "photo",
+      codFeePercent: "0.0500",
+      deliveryFeeAed: "15.00",
+      disputeWindowDays: 7,
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await tx.insert(merchantProfile).values({
+      userId: input.userId,
+      merchantId,
+    });
+  });
+
+  const row = await db.query.merchants.findFirst({
+    where: eq(merchants.id, merchantId),
+  });
+
+  return row ? formatMerchant(row) : undefined;
+}
+
+export async function updateMerchantFulfillment(
+  merchantId: string,
+  fulfillmentMode: "pickup" | "dropoff",
+  pickupAddress?: string,
+) {
+  const db = getDb();
+  await db
+    .update(merchants)
+    .set({
+      fulfillmentMode,
+      pickupAddress: pickupAddress?.trim() ?? null,
+      updatedAt: new Date(),
+    })
+    .where(eq(merchants.id, merchantId));
+}
+
 export async function createRider(input: {
   name: string;
   zone: string;
@@ -800,6 +1019,10 @@ export async function createParcel(input: {
     averageShippingChargeAed,
     customerNotes: input.notes,
   });
+  const reviewState =
+    input.source === "merchant" ? "under_review" : "dispatch_ready";
+  const reviewChecklist =
+    input.source === "operator" ? buildApprovedReviewChecklist() : null;
 
   await db.transaction(async (tx) => {
     await tx.insert(parcels).values({
@@ -812,6 +1035,13 @@ export async function createParcel(input: {
       address: input.address.trim(),
       codAmountAed: roundCurrency(input.codAmountAed).toFixed(2),
       state: "unassigned",
+      reviewState,
+      reviewChecklist,
+      reviewedAt: input.source === "operator" ? now : null,
+      reviewedByUserId:
+        input.source === "operator" ? (input.actorUserId ?? null) : null,
+      reviewedByLabel:
+        input.source === "operator" ? (input.actorLabel ?? "Operator") : null,
       itemSummary: input.itemSummary.trim(),
       notes: storedNotes ?? null,
       createdAt: now,
@@ -821,7 +1051,8 @@ export async function createParcel(input: {
     await tx.insert(events).values({
       id: buildId("evt"),
       parcelId,
-      type: input.source === "merchant" ? "parcel.requested" : "parcel.created",
+      type:
+        input.source === "merchant" ? "request.submitted" : "parcel.created",
       actorUserId: input.actorUserId ?? null,
       actorLabel:
         input.actorLabel ??
@@ -831,6 +1062,7 @@ export async function createParcel(input: {
         source: input.source,
         pickupAddress,
         averageShippingChargeAed,
+        reviewState,
       },
       occurredAt: now,
     });
@@ -838,28 +1070,443 @@ export async function createParcel(input: {
 
   const rows = await getDb()
     .select({
-      id: parcels.id,
-      awb: parcels.awb,
-      merchantId: parcels.merchantId,
+      ...baseParcelSelection,
       merchantName: merchants.name,
-      riderId: parcels.riderId,
-      manifestId: parcels.manifestId,
-      customerName: parcels.customerName,
-      customerPhone: parcels.customerPhone,
-      area: parcels.area,
-      address: parcels.address,
-      codAmountAed: parcels.codAmountAed,
-      state: parcels.state,
-      itemSummary: parcels.itemSummary,
-      notes: parcels.notes,
-      createdAt: parcels.createdAt,
-      updatedAt: parcels.updatedAt,
     })
     .from(parcels)
     .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
     .where(eq(parcels.id, parcelId));
 
-  return rows[0] ? formatParcel(rows[0]) : undefined;
+  return rows[0] ? (await hydrateParcels(rows))[0] : undefined;
+}
+
+export async function approveParcelForDispatch(input: {
+  parcelId: string;
+  checklist: Partial<RequestReviewChecklist>;
+  note?: string;
+  deliveryFeeAed?: number;
+  actorUserId?: string;
+  actorLabel?: string;
+}) {
+  const db = getDb();
+  const checklist = normalizeReviewChecklist(input.checklist);
+
+  if (!isReviewChecklistComplete(checklist)) {
+    throw new Error(
+      "Complete the review checklist before approving this request for dispatch.",
+    );
+  }
+
+  return db.transaction(async (tx) => {
+    const parcel = await tx.query.parcels.findFirst({
+      where: eq(parcels.id, input.parcelId),
+    });
+
+    if (!parcel) {
+      throw new Error("That request could not be found.");
+    }
+
+    if (parcel.state !== "unassigned") {
+      throw new Error("Only unassigned requests can be reviewed.");
+    }
+
+    const now = new Date();
+    const reviewNote = input.note?.trim() || null;
+
+    await tx
+      .update(parcels)
+      .set({
+        reviewState: "dispatch_ready",
+        reviewChecklist: checklist,
+        reviewNote,
+        ...(input.deliveryFeeAed != null
+          ? { deliveryFeeAed: roundCurrency(input.deliveryFeeAed).toFixed(2) }
+          : {}),
+        reviewedAt: now,
+        reviewedByUserId: input.actorUserId ?? null,
+        reviewedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, input.parcelId));
+
+    await tx
+      .update(parcelFollowUps)
+      .set({
+        status: "resolved",
+        resolvedAt: now,
+        resolvedByUserId: input.actorUserId ?? null,
+        resolvedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(parcelFollowUps.parcelId, input.parcelId),
+          eq(parcelFollowUps.status, "open"),
+        ),
+      );
+
+    await tx.insert(events).values([
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.reviewed",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          reviewState: "dispatch_ready",
+          checklist,
+          note: reviewNote,
+        },
+        occurredAt: now,
+      },
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.approved_for_dispatch",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          checklist,
+        },
+        occurredAt: now,
+      },
+    ]);
+
+    return { parcelId: input.parcelId };
+  });
+}
+
+export async function sendParcelFollowUp(input: {
+  parcelId: string;
+  checklist?: Partial<RequestReviewChecklist>;
+  message: string;
+  note?: string;
+  actorUserId?: string;
+  actorLabel?: string;
+}) {
+  const db = getDb();
+  const message = input.message.trim();
+  if (!message) {
+    throw new Error("A follow-up message is required.");
+  }
+
+  return db.transaction(async (tx) => {
+    const parcel = await tx.query.parcels.findFirst({
+      where: eq(parcels.id, input.parcelId),
+    });
+
+    if (!parcel) {
+      throw new Error("That request could not be found.");
+    }
+
+    if (parcel.state !== "unassigned") {
+      throw new Error(
+        "Only unassigned requests can be sent for clarification.",
+      );
+    }
+
+    const now = new Date();
+    const checklist = normalizeReviewChecklist(input.checklist);
+    const reviewNote = input.note?.trim() || null;
+
+    await tx
+      .update(parcelFollowUps)
+      .set({
+        status: "resolved",
+        resolvedAt: now,
+        resolvedByUserId: input.actorUserId ?? null,
+        resolvedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(parcelFollowUps.parcelId, input.parcelId),
+          eq(parcelFollowUps.status, "open"),
+        ),
+      );
+
+    const followUpId = buildId("fu");
+    await tx.insert(parcelFollowUps).values({
+      id: followUpId,
+      parcelId: input.parcelId,
+      message,
+      status: "open",
+      createdByUserId: input.actorUserId ?? null,
+      createdByLabel: input.actorLabel ?? "Operator",
+      createdAt: now,
+      updatedAt: now,
+    });
+
+    await tx
+      .update(parcels)
+      .set({
+        reviewState: "needs_clarification",
+        reviewChecklist: checklist,
+        reviewNote,
+        reviewedAt: now,
+        reviewedByUserId: input.actorUserId ?? null,
+        reviewedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, input.parcelId));
+
+    await tx.insert(events).values([
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.reviewed",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          reviewState: "needs_clarification",
+          checklist,
+          note: reviewNote,
+        },
+        occurredAt: now,
+      },
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.needs_clarification",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          followUpId,
+          message,
+        },
+        occurredAt: now,
+      },
+    ]);
+
+    return { followUpId, parcelId: input.parcelId };
+  });
+}
+
+export async function holdParcelRequest(input: {
+  parcelId: string;
+  checklist?: Partial<RequestReviewChecklist>;
+  note?: string;
+  message?: string;
+  actorUserId?: string;
+  actorLabel?: string;
+}) {
+  const db = getDb();
+  const reviewNote = input.note?.trim() || null;
+  const message = input.message?.trim() || null;
+
+  if (!reviewNote && !message) {
+    throw new Error(
+      "Add a hold reason or merchant-facing message before holding.",
+    );
+  }
+
+  return db.transaction(async (tx) => {
+    const parcel = await tx.query.parcels.findFirst({
+      where: eq(parcels.id, input.parcelId),
+    });
+
+    if (!parcel) {
+      throw new Error("That request could not be found.");
+    }
+
+    if (parcel.state !== "unassigned") {
+      throw new Error("Only unassigned requests can be held.");
+    }
+
+    const now = new Date();
+    const checklist = normalizeReviewChecklist(input.checklist);
+
+    await tx
+      .update(parcelFollowUps)
+      .set({
+        status: "resolved",
+        resolvedAt: now,
+        resolvedByUserId: input.actorUserId ?? null,
+        resolvedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(parcelFollowUps.parcelId, input.parcelId),
+          eq(parcelFollowUps.status, "open"),
+        ),
+      );
+
+    let followUpId: string | undefined;
+    if (message) {
+      followUpId = buildId("fu");
+      await tx.insert(parcelFollowUps).values({
+        id: followUpId,
+        parcelId: input.parcelId,
+        message,
+        status: "open",
+        createdByUserId: input.actorUserId ?? null,
+        createdByLabel: input.actorLabel ?? "Operator",
+        createdAt: now,
+        updatedAt: now,
+      });
+    }
+
+    await tx
+      .update(parcels)
+      .set({
+        reviewState: "on_hold",
+        reviewChecklist: checklist,
+        reviewNote,
+        reviewedAt: now,
+        reviewedByUserId: input.actorUserId ?? null,
+        reviewedByLabel: input.actorLabel ?? "Operator",
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, input.parcelId));
+
+    await tx.insert(events).values([
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.reviewed",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          reviewState: "on_hold",
+          checklist,
+          note: reviewNote,
+        },
+        occurredAt: now,
+      },
+      {
+        id: buildId("evt"),
+        parcelId: input.parcelId,
+        type: "request.on_hold",
+        actorUserId: input.actorUserId ?? null,
+        actorLabel: input.actorLabel ?? "Operator",
+        location: parcel.area,
+        payload: {
+          followUpId,
+          message,
+          note: reviewNote,
+        },
+        occurredAt: now,
+      },
+    ]);
+
+    return { followUpId, parcelId: input.parcelId };
+  });
+}
+
+export async function updateParcelRequestByMerchant(input: {
+  parcelId: string;
+  merchantId: string;
+  customerName: string;
+  customerPhone: string;
+  pickupAddress: string;
+  area: string;
+  address: string;
+  codAmountAed: number;
+  averageShippingChargeAed?: number;
+  itemSummary: string;
+  notes?: string;
+  actorUserId?: string;
+  actorLabel?: string;
+}) {
+  const db = getDb();
+  const now = new Date();
+  const pickupAddress = input.pickupAddress.trim();
+  const averageShippingChargeAed =
+    typeof input.averageShippingChargeAed === "number"
+      ? roundCurrency(input.averageShippingChargeAed)
+      : undefined;
+  const storedNotes = encodeParcelWorkflowNotes({
+    pickupAddress,
+    averageShippingChargeAed,
+    customerNotes: input.notes,
+  });
+
+  await db.transaction(async (tx) => {
+    const parcel = await tx.query.parcels.findFirst({
+      where: and(
+        eq(parcels.id, input.parcelId),
+        eq(parcels.merchantId, input.merchantId),
+      ),
+    });
+
+    if (!parcel) {
+      throw new Error("That request could not be found for this merchant.");
+    }
+
+    if (parcel.state !== "unassigned") {
+      throw new Error(
+        "Only unassigned requests can be updated by the merchant.",
+      );
+    }
+
+    await tx
+      .update(parcels)
+      .set({
+        customerName: input.customerName.trim(),
+        customerPhone: input.customerPhone.trim(),
+        area: input.area.trim(),
+        address: input.address.trim(),
+        codAmountAed: roundCurrency(input.codAmountAed).toFixed(2),
+        reviewState: "under_review",
+        reviewChecklist: null,
+        reviewNote: null,
+        reviewedAt: null,
+        reviewedByUserId: null,
+        reviewedByLabel: null,
+        itemSummary: input.itemSummary.trim(),
+        notes: storedNotes ?? null,
+        updatedAt: now,
+      })
+      .where(eq(parcels.id, input.parcelId));
+
+    await tx
+      .update(parcelFollowUps)
+      .set({
+        status: "resolved",
+        resolvedAt: now,
+        resolvedByUserId: input.actorUserId ?? null,
+        resolvedByLabel: input.actorLabel ?? "Merchant",
+        updatedAt: now,
+      })
+      .where(
+        and(
+          eq(parcelFollowUps.parcelId, input.parcelId),
+          eq(parcelFollowUps.status, "open"),
+        ),
+      );
+
+    await tx.insert(events).values({
+      id: buildId("evt"),
+      parcelId: input.parcelId,
+      type: "request.updated_by_merchant",
+      actorUserId: input.actorUserId ?? null,
+      actorLabel: input.actorLabel ?? "Merchant",
+      location: input.area.trim(),
+      payload: {
+        pickupAddress,
+        averageShippingChargeAed,
+        reviewState: "under_review",
+      },
+      occurredAt: now,
+    });
+  });
+
+  const rows = await getDb()
+    .select({
+      ...baseParcelSelection,
+      merchantName: merchants.name,
+    })
+    .from(parcels)
+    .innerJoin(merchants, eq(parcels.merchantId, merchants.id))
+    .where(eq(parcels.id, input.parcelId));
+
+  return rows[0] ? (await hydrateParcels(rows))[0] : undefined;
 }
 
 export async function assignManifest(input: {
@@ -883,6 +1530,7 @@ export async function assignManifest(input: {
         area: parcels.area,
         codAmountAed: parcels.codAmountAed,
         state: parcels.state,
+        reviewState: parcels.reviewState,
       })
       .from(parcels)
       .where(inArray(parcels.id, parcelIds));
@@ -891,9 +1539,9 @@ export async function assignManifest(input: {
       throw new Error("One or more selected parcels could not be found.");
     }
 
-    if (selectedParcels.some((parcel) => parcel.state !== "unassigned")) {
+    if (selectedParcels.some((parcel) => !isDispatchReadyParcel(parcel))) {
       throw new Error(
-        "Only unassigned parcels can be added to a new manifest.",
+        "Only dispatch-ready parcels can be added to a new manifest.",
       );
     }
 

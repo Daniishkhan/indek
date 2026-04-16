@@ -1,5 +1,5 @@
 import Link from "next/link";
-import { AlertCircle, Building2, Package, Truck, Wallet } from "lucide-react";
+import { AlertCircle, Building2, Truck, Wallet } from "lucide-react";
 import { getOperatorOverviewData, listParcels } from "@indek/domain";
 import {
   AreaTrendChart,
