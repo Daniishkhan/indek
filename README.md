@@ -86,6 +86,8 @@ Seeded merchant token demo links:
 Run the web app:
 
 ```bash
+make dev
+# or
 pnpm dev
 ```
 
@@ -99,6 +101,7 @@ pnpm check
 pnpm check:full
 pnpm format
 make seed
+make dev
 ```
 
 ## Documentation

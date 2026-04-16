@@ -6,11 +6,31 @@ import { AppShell, type ShellNavItem } from "@/components/app-shell";
 const links: ShellNavItem[] = [
   {
     href: "/rider",
-    label: "Manifest",
-    caption:
-      "Accept your manifest, complete deliveries, and push status back to operations.",
+    label: "My Work",
+    caption: "Today's work and shift status",
     icon: "package",
-    section: "Shift",
+    section: "Today",
+  },
+  {
+    href: "/rider/deliveries",
+    label: "Deliveries",
+    caption: "Parcels to deliver now",
+    icon: "truck",
+    section: "Today",
+  },
+  {
+    href: "/rider/done",
+    label: "Done",
+    caption: "Completed deliveries today",
+    icon: "check",
+    section: "Today",
+  },
+  {
+    href: "/rider/cash",
+    label: "Cash",
+    caption: "Cash collected today",
+    icon: "wallet",
+    section: "Today",
   },
 ];
 
