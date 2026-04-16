@@ -76,99 +76,125 @@ export default async function RiderHomePage({
         <div className={`notice ${notice.tone}`}>{notice.text}</div>
       ) : null}
 
-      <section className="stats-grid">
-        <article
-          className="panel"
-          style={{ gridColumn: "span 2", padding: 18 }}
+      {/* Rider greeting + progress */}
+      <section className="panel" style={{ padding: 20 }}>
+        <div
+          style={{
+            display: "grid",
+            gridTemplateColumns: "auto 1fr",
+            gap: 18,
+            alignItems: "center",
+          }}
         >
-          <div
-            style={{
-              display: "grid",
-              gridTemplateColumns: "auto 1fr",
-              gap: 22,
-              alignItems: "center",
-            }}
-          >
-            <ProgressRing
-              value={completedCount}
-              total={Math.max(totalInShift, 1)}
-              label="Completed"
-              color={chartColors[2]}
-            />
-            <div className="stack-tight">
-              <div className="eyebrow" style={{ margin: 0 }}>
-                {rider.zone} · {rider.status.replace("_", " ")}
-              </div>
-              <h2 style={{ margin: "4px 0 2px", fontSize: "1.25rem" }}>
-                {rider.name}
-              </h2>
-              <div className="muted" style={{ fontSize: "0.88rem" }}>
-                {deliveredParcels.length} delivered · {failedParcels.length}{" "}
-                failed · {activeParcels.length} in transit
-              </div>
-              <div style={{ marginTop: 10 }}>
-                <span className="chip primary">
-                  {manifest
-                    ? manifest.accepted
-                      ? "Manifest accepted"
-                      : "Awaiting acceptance"
-                    : "No manifest yet"}
-                </span>
-              </div>
+          <ProgressRing
+            value={completedCount}
+            total={Math.max(totalInShift, 1)}
+            label="Done"
+            color={chartColors[2]}
+          />
+          <div className="stack-tight">
+            <h2 style={{ margin: 0, fontSize: "1.25rem" }}>{rider.name}</h2>
+            <div className="muted" style={{ fontSize: "0.9rem" }}>
+              {rider.zone} &middot;{" "}
+              {rider.status === "on_shift"
+                ? "On shift"
+                : rider.status === "returning"
+                  ? "Returning"
+                  : rider.status === "available"
+                    ? "Available"
+                    : "Off shift"}
             </div>
           </div>
+        </div>
+      </section>
+
+      {/* Quick stats */}
+      <section
+        style={{
+          display: "grid",
+          gridTemplateColumns: "1fr 1fr 1fr",
+          gap: 10,
+        }}
+      >
+        <article className="panel" style={{ padding: 14, textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 6,
+            }}
+          >
+            <Truck style={{ width: 20, height: 20, color: "var(--primary)" }} />
+          </div>
+          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+            {activeParcels.length}
+          </div>
+          <div className="muted" style={{ fontSize: "0.8rem" }}>
+            To deliver
+          </div>
         </article>
 
-        <article className="kpi">
-          <div className="kpi-head">
-            <span className="kpi-label">Cash held</span>
-            <span className="kpi-icon success">
-              <Wallet />
-            </span>
+        <article className="panel" style={{ padding: 14, textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 6,
+            }}
+          >
+            <CheckCircle2
+              style={{ width: 20, height: 20, color: "var(--success)" }}
+            />
           </div>
-          <div className="kpi-value">{formatCurrency(rider.cashHeldAed)}</div>
-          <div className="kpi-foot">
-            <span>Float {formatCurrency(rider.personalFloatAed)}</span>
+          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+            {deliveredParcels.length}
+          </div>
+          <div className="muted" style={{ fontSize: "0.8rem" }}>
+            Delivered
           </div>
         </article>
 
-        <article className="kpi">
-          <div className="kpi-head">
-            <span className="kpi-label">In custody</span>
-            <span className="kpi-icon">
-              <MapPin />
-            </span>
+        <article className="panel" style={{ padding: 14, textAlign: "center" }}>
+          <div
+            style={{
+              display: "flex",
+              justifyContent: "center",
+              marginBottom: 6,
+            }}
+          >
+            <AlertTriangle
+              style={{ width: 20, height: 20, color: "var(--danger)" }}
+            />
           </div>
-          <div className="kpi-value">{rider.parcelsInCustody}</div>
-          <div className="kpi-foot">
-            <span>
-              {manifest
-                ? `${manifest.pickupCount} pickups · ${manifest.zoneSummary}`
-                : "No active manifest"}
-            </span>
+          <div style={{ fontSize: "1.5rem", fontWeight: 700 }}>
+            {failedParcels.length}
+          </div>
+          <div className="muted" style={{ fontSize: "0.8rem" }}>
+            Failed
           </div>
         </article>
       </section>
 
+      {/* Manifest acceptance */}
       {manifest && !manifest.accepted ? (
-        <section className="panel stack">
+        <section className="panel stack" style={{ padding: 20 }}>
           <div className="split">
             <div>
-              <div className="eyebrow">Accept work</div>
-              <h2 style={{ margin: 0 }}>Manifest ready to start</h2>
+              <div className="eyebrow">New work assigned</div>
+              <h2 style={{ margin: 0 }}>
+                {queuedParcels.length} parcel
+                {queuedParcels.length !== 1 ? "s" : ""} to pick up
+              </h2>
             </div>
-            <span className="chip warn">{queuedParcels.length} assigned</span>
+            <span className="chip warn">
+              {formatCurrency(manifest.expectedCodAed)} COD
+            </span>
           </div>
-          <p>
-            Accept the manifest to move assigned parcels into transit and start
-            the delivery slice.
+          <p className="muted" style={{ fontSize: "0.9rem" }}>
+            {manifest.pickupCount} pickup
+            {manifest.pickupCount !== 1 ? "s" : ""} &middot;{" "}
+            {manifest.zoneSummary}
           </p>
-          <form action={acceptManifestAction}>
-            <input name="manifestId" type="hidden" value={manifest.id} />
-            <button className="button" type="submit">
-              Accept manifest
-            </button>
-          </form>
 
           {queuedParcels.length > 0 ? (
             <div className="list">
@@ -180,143 +206,73 @@ export default async function RiderHomePage({
                       {formatCurrency(parcel.codAmountAed)}
                     </span>
                   </div>
-                  <div style={{ fontSize: "0.9rem" }}>{parcel.address}</div>
-                  <div className="muted" style={{ fontSize: "0.82rem" }}>
-                    {parcel.itemSummary}
+                  <div className="muted" style={{ fontSize: "0.88rem" }}>
+                    {parcel.area} &middot; {parcel.itemSummary}
                   </div>
                 </article>
               ))}
             </div>
           ) : null}
+
+          <form action={acceptManifestAction}>
+            <input name="manifestId" type="hidden" value={manifest.id} />
+            <button
+              className="button"
+              type="submit"
+              style={{ width: "100%", height: 48, fontSize: "1rem" }}
+            >
+              <Package style={{ width: 18, height: 18, marginRight: 8 }} />
+              Accept Work
+            </button>
+          </form>
         </section>
       ) : null}
 
-      <section className="panel stack">
-        <div className="split">
-          <div>
-            <div className="eyebrow">Shift worklist</div>
-            <h2 style={{ margin: 0 }}>Active deliveries</h2>
-          </div>
-          <span className="chip primary">
-            {activeParcels.length === 0
-              ? "No active parcels"
-              : `${activeParcels.length} active`}
-          </span>
-        </div>
-
-        {activeParcels.length > 0 ? (
-          <div className="list">
-            {activeParcels.map((parcel) => (
-              <article className="list-item" key={parcel.id}>
-                <div className="split">
-                  <strong>{parcel.customerName}</strong>
-                  <span className="chip warn">
-                    {formatCurrency(parcel.codAmountAed)}
-                  </span>
-                </div>
-                <div style={{ fontSize: "0.9rem" }}>{parcel.address}</div>
-                <div className="muted" style={{ fontSize: "0.82rem" }}>
-                  {parcel.itemSummary}
-                </div>
-                <div className="action-stack">
-                  <form action={recordParcelDeliveredAction}>
-                    <input name="parcelId" type="hidden" value={parcel.id} />
-                    <button className="button" type="submit">
-                      <CheckCircle2
-                        style={{ width: 16, height: 16, marginRight: 6 }}
-                      />
-                      Delivered
-                    </button>
-                  </form>
-
-                  <form
-                    action={recordParcelFailedAction}
-                    className="action-form"
-                  >
-                    <input name="parcelId" type="hidden" value={parcel.id} />
-                    <select
-                      className="select"
-                      defaultValue=""
-                      name="reason"
-                      required
-                    >
-                      <option disabled value="">
-                        Select failure reason
-                      </option>
-                      {failureReasons.map((reason) => (
-                        <option key={reason} value={reason}>
-                          {FAILURE_REASON_LABELS[reason]}
-                        </option>
-                      ))}
-                    </select>
-                    <button className="button secondary" type="submit">
-                      Failed
-                    </button>
-                  </form>
-                </div>
-              </article>
-            ))}
-          </div>
-        ) : (
-          <div className="empty-state">
-            <strong>No in-transit parcels right now.</strong>
-            <span className="muted">
-              Accept a manifest first, or wait for operations to dispatch work.
-            </span>
-          </div>
-        )}
-      </section>
-
-      {completedCount > 0 ? (
-        <section className="panel stack">
+      {/* Active work summary — link to deliveries */}
+      {activeParcels.length > 0 ? (
+        <a
+          href="/rider/deliveries"
+          className="panel"
+          style={{
+            display: "block",
+            padding: 20,
+            textDecoration: "none",
+            color: "inherit",
+            border: "2px solid var(--primary)",
+          }}
+        >
           <div className="split">
             <div>
-              <div className="eyebrow">Completed this shift</div>
-              <h2 style={{ margin: 0 }}>Resolved parcels</h2>
+              <strong style={{ fontSize: "1.05rem" }}>
+                {activeParcels.length} delivery
+                {activeParcels.length !== 1 ? " runs" : ""} waiting
+              </strong>
+              <div className="muted" style={{ fontSize: "0.88rem" }}>
+                Tap to see your delivery list
+              </div>
             </div>
-            <span className="chip">{completedCount}</span>
+            <span style={{ fontSize: "1.2rem", color: "var(--primary)" }}>
+              &rarr;
+            </span>
           </div>
-
-          <table className="table">
-            <thead>
-              <tr>
-                <th>AWB</th>
-                <th>Customer</th>
-                <th>Outcome</th>
-                <th>Updated</th>
-              </tr>
-            </thead>
-            <tbody>
-              {[...deliveredParcels, ...failedParcels].map((parcel) => (
-                <tr key={parcel.id}>
-                  <td
-                    style={{
-                      fontFamily: "var(--font-mono)",
-                      fontSize: "0.82rem",
-                    }}
-                  >
-                    {parcel.awb}
-                  </td>
-                  <td>{parcel.customerName}</td>
-                  <td>
-                    <span
-                      className={`status-dot ${
-                        parcel.state === "delivered" ? "success" : "danger"
-                      }`}
-                    >
-                      {parcel.state.replace("_", " ")}
-                    </span>
-                  </td>
-                  <td className="muted" style={{ fontSize: "0.82rem" }}>
-                    {new Date(parcel.lastUpdateAt).toLocaleTimeString([], {
-                      hour: "2-digit",
-                      minute: "2-digit",
-                    })}
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
+        </a>
+      ) : manifest && manifest.accepted ? (
+        <section className="panel" style={{ padding: 20 }}>
+          <div className="empty-state">
+            <strong>All parcels done for today</strong>
+            <span className="muted">
+              Head to the Cash page to check your handover total.
+            </span>
+          </div>
+        </section>
+      ) : !manifest ? (
+        <section className="panel" style={{ padding: 20 }}>
+          <div className="empty-state">
+            <strong>No work assigned yet</strong>
+            <span className="muted">
+              Wait for your operator to assign you parcels.
+            </span>
+          </div>
         </section>
       ) : null}
     </>
