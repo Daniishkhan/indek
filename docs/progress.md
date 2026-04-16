@@ -31,6 +31,7 @@ Use this file to record what is done, what is partial, and what is next.
 ### What works locally today
 
 - Local Postgres-backed request-to-delivery slice is live.
+- Dev seeders create local auth users and linked profiles for `operator`, `merchant`, and `rider` alongside seeded domain data.
 - Role-specific routes exist for `operator`, `merchant`, and `rider`.
 - Operator can create merchants and riders, intake orders, and assign manifests.
 - Merchant token portal can create delivery requests and show active and recent parcel status.
@@ -42,6 +43,16 @@ Use this file to record what is done, what is partial, and what is next.
 - Rider can accept a manifest and resolve parcels as `delivered` or `failed`.
 - Shared app shell/navigation exists across operator, merchant, rider, and merchant token surfaces.
 - Husky and repo checks are in place.
+
+### Local development seed
+
+Run `make seed` or `pnpm seed` to reset and seed local auth + domain data.
+
+Seeded credentials:
+
+- operator admin: `danish@indek.test` / `indek1234`
+- merchant admin: `merchant@indek.test` / `indek1234`
+- rider: `rider@indek.test` / `indek1234`
 
 ### What is still partial or missing
 

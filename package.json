@@ -8,6 +8,7 @@
     "lint": "pnpm --filter web lint",
     "test:backend": "pnpm --filter @indek/domain test",
     "typecheck": "pnpm --filter web typecheck",
+    "seed": "pnpm --filter web exec tsx scripts/seed-dev.ts",
     "check": "pnpm lint && pnpm typecheck",
     "check:full": "pnpm check && pnpm build",
     "format": "prettier --write .",

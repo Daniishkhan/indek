@@ -63,6 +63,26 @@ Install dependencies:
 pnpm install
 ```
 
+Seed the local database and auth users:
+
+```bash
+make seed
+# or
+pnpm seed
+```
+
+Seeded local credentials:
+
+- operator admin: `danish@indek.test` / `indek1234`
+- merchant admin: `merchant@indek.test` / `indek1234`
+- rider: `rider@indek.test` / `indek1234`
+
+Seeded merchant token demo links:
+
+- `/m/bloom-demo`
+- `/m/noon-demo`
+- `/m/safa-demo`
+
 Run the web app:
 
 ```bash
@@ -78,7 +98,7 @@ pnpm typecheck
 pnpm check
 pnpm check:full
 pnpm format
-make help
+make seed
 ```
 
 ## Documentation
